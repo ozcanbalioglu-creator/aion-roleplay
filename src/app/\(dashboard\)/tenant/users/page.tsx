@@ -2,21 +2,21 @@ import { PageHeader } from '@/components/admin/PageHeader'
 import { Button } from '@/components/ui/button'
 import { PlusIcon } from 'lucide-react'
 
-export default async function TenantsPage() {
+export default function UsersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Tenant Yönetimi"
-        description="Kurumlarınızı yönetin"
+        title="Kullanıcı Yönetimi"
+        description="Kurumunuzun kullanıcılarını yönetin"
         action={
           <Button>
             <PlusIcon className="mr-2 h-4 w-4" />
-            Yeni Tenant
+            Kullanıcı Davet Et
           </Button>
         }
       />
       <div className="rounded-lg border p-6">
-        <p className="text-muted-foreground">Tenant tablosu ve oluştur dialog — Faz 5.2'de oluşturulacak (TenantTable, CreateTenantDialog bileşenleri)</p>
+        <p className="text-muted-foreground">Kullanıcı tablosu — Faz 5.3'te oluşturulacak</p>
       </div>
     </div>
   )
