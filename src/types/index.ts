@@ -247,7 +247,128 @@ export interface ApiError {
 
 export type ApiResponse<T> = ApiSuccess<T> | ApiError
 
-// ─── ADAPTER ────────────────────────────────────────────────────────────────
+// ─── PERSONA KPI ─────────────────────────────────────────────────────────────
+
+export type KpiCode =
+  | 'genel_rea'
+  | 'ciro_rea'
+  | 'musteri_ziyaret_rea'
+  | 'yeni_musteri_kazanimi_rea'
+  | 'pazar_payi'
+  | 'pazar_payi_degisimi'
+  | 'verimli_ziyaret'
+  | 'kaveraj'
+  | 'nps_musteri_memnuniyeti'
+  | 'ozel_kpi'
+
+export interface PersonaKPI {
+  id: string
+  persona_id: string
+  kpi_code: KpiCode
+  kpi_name: string
+  value: number
+  unit: string
+  is_custom: boolean
+  sort_order: number
+}
+
+export interface PersonaWithKPIs extends Persona {
+  kpis: PersonaKPI[]
+}
+
+// ─── GAMIFICATION ─────────────────────────────────────────────────────────────
+
+export type BadgeCategory = 'milestone' | 'skill' | 'difficulty' | 'streak' | 'improvement'
+
+export type ChallengeType = 'weekly_basic' | 'discovery' | 'improvement' | 'difficulty'
+
+export interface Challenge {
+  id: string
+  type: ChallengeType
+  name: string
+  description: string
+  bonus_points: number
+  criteria: Record<string, unknown>
+  is_active: boolean
+}
+
+export interface UserChallenge {
+  id: string
+  user_id: string
+  challenge_id: string
+  week_start: string
+  status: 'active' | 'completed' | 'expired'
+  completed_session_id?: string
+  completed_at?: string
+  challenge?: Challenge
+}
+
+export interface PointTransaction {
+  id: string
+  user_id: string
+  points: number
+  reason: string
+  ref_type?: 'session' | 'badge' | 'challenge' | 'bonus'
+  ref_id?: string
+  created_at: string
+}
+
+// ─── USER PERSONA STATS (View) ────────────────────────────────────────────────
+
+export interface UserPersonaStat {
+  user_id: string
+  tenant_id: string
+  persona_id: string
+  completed_sessions: number
+  cancelled_sessions: number
+  dropped_sessions: number
+  avg_score: number | null
+  last_completed_at: string | null
+  never_completed: boolean
+}
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+
+export type NotificationType =
+  | 'weekly_reminder'
+  | 'session_complete'
+  | 'badge_earned'
+  | 'challenge_assigned'
+  | 'challenge_complete'
+  | 'manager_report'
+  | 'deletion_request'
+  | 'system'
+
+export interface Notification {
+  id: string
+  user_id: string
+  tenant_id: string
+  type: NotificationType
+  title: string
+  body: string
+  ref_type?: string
+  ref_id?: string
+  is_read: boolean
+  email_sent: boolean
+  created_at: string
+}
+
+// ─── DELETION REQUEST ─────────────────────────────────────────────────────────
+
+export type DeletionStatus = 'pending' | 'in_progress' | 'completed' | 'rejected'
+
+export interface DataDeletionRequest {
+  id: string
+  user_id: string
+  tenant_id: string
+  requested_by: string
+  status: DeletionStatus
+  reason?: string
+  admin_note?: string
+  deadline_at: string
+  processed_at?: string
+  created_at: string
+}
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'

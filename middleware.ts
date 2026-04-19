@@ -1,36 +1,57 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
-// Routes that don't require authentication
-const PUBLIC_ROUTES = ['/', '/login', '/auth/callback']
+const PUBLIC_ROUTES = [
+  '/login',
+  '/auth/callback',
+  '/api/health'
+]
 
-// Routes that require specific roles (beyond being authenticated)
-const ADMIN_ROUTES = ['/admin']
+const CONSENT_ROUTE = '/consent'
+
+const ADMIN_ONLY_ROUTES = ['/admin/tenants', '/admin/personas', '/admin/prompts', '/admin/system']
 const MANAGER_ROUTES = ['/manager']
+const ADMIN_ROUTES = ['/admin']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Pass through public routes
-  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
+  // Statik dosyalar ve API health'i geç
+  if (PUBLIC_ROUTES.some(r => pathname.startsWith(r))) {
     const { supabaseResponse } = await updateSession(request)
     return supabaseResponse
   }
 
-  // Refresh session and get user
   const { supabaseResponse, user } = await updateSession(request)
 
-  // No user → redirect to login
+  // Giriş yapılmamış → /login
   if (!user) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('next', pathname)
-    return NextResponse.redirect(loginUrl)
+    if (pathname !== '/login') {
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('next', pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+    return supabaseResponse
   }
 
-  // Role-based route protection
-  // Note: Full role checking is done inside route handlers via RLS
-  // Middleware only handles coarse-grained redirects
+  // Giriş yapılmış + /login → /dashboard
+  if (pathname === '/login') {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
   const role = user.user_metadata?.role as string | undefined
+
+  // Consent sayfası: sadece giriş yapmış kullanıcı erişebilir
+  if (pathname === CONSENT_ROUTE) {
+    return supabaseResponse
+  }
+
+  // Role-based coarse protection
+  if (ADMIN_ONLY_ROUTES.some(r => pathname.startsWith(r))) {
+    if (role !== 'super_admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  }
 
   if (ADMIN_ROUTES.some(r => pathname.startsWith(r))) {
     if (!role || !['super_admin', 'tenant_admin'].includes(role)) {
