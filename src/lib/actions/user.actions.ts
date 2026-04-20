@@ -60,7 +60,10 @@ export async function inviteUserAction(formData: FormData) {
   if (profileError) return { error: 'Kullanıcı profili oluşturulamadı: ' + profileError.message }
 
   revalidatePath('/tenant/users')
-  return { success: `${parsed.data.email} adresine davet gönderildi.` }
+  return {
+    success: `${parsed.data.email} başarıyla oluşturuldu.`,
+    tempPassword
+  }
 }
 
 export async function updateUserRoleAction(userId: string, role: UserRole) {
