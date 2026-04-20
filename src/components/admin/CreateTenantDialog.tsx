@@ -1,0 +1,103 @@
+'use client'
+
+import { useRef } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { SubmitButton } from '@/components/ui/SubmitButton'
+import { useServerAction } from '@/hooks/useServerAction'
+import { createTenantAction } from '@/lib/actions/tenant.actions'
+
+interface CreateTenantDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+}
+
+export function CreateTenantDialog({ open, onOpenChange }: CreateTenantDialogProps) {
+  const formRef = useRef<HTMLFormElement>(null)
+  const slugRef = useRef<HTMLInputElement>(null)
+
+  const { execute, isPending } = useServerAction(createTenantAction, {
+    onSuccess: () => {
+      formRef.current?.reset()
+      onOpenChange(false)
+    },
+  })
+
+  function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (slugRef.current && !slugRef.current.dataset.edited) {
+      slugRef.current.value = slugify(e.target.value)
+    }
+  }
+
+  function handleFormAction(formData: FormData) {
+    execute(formData)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Yeni Tenant Oluştur</DialogTitle>
+        </DialogHeader>
+        <form ref={formRef} action={handleFormAction} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Kurum Adı</Label>
+            <Input
+              id="name"
+              name="name"
+              placeholder="Örn: Acme Şirketi"
+              onChange={handleNameChange}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="slug">Slug (URL Adresi)</Label>
+            <Input
+              id="slug"
+              name="slug"
+              placeholder="ornek-sirket"
+              ref={slugRef}
+              onChange={() => {
+                if (slugRef.current) {
+                  slugRef.current.value = slugify(slugRef.current.value)
+                  slugRef.current.dataset.edited = 'true'
+                }
+              }}
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Otomatik: boşluk ve özel karakterler kaldırılır. Küçük harf ve tire kullanılır.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="brand_color">Marka Rengi</Label>
+            <Input
+              id="brand_color"
+              name="brand_color"
+              type="color"
+              defaultValue="#4F46E5"
+              className="h-10 w-20 p-1"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <SubmitButton disabled={isPending}>Oluştur</SubmitButton>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
