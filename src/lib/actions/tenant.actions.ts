@@ -21,8 +21,8 @@ export async function createTenantAction(formData: FormData) {
   const raw = {
     name: formData.get('name') as string,
     slug: formData.get('slug') as string,
-    brand_color: formData.get('brand_color') as string | undefined,
-    logo_url: formData.get('logo_url') as string | undefined,
+    brand_color: (formData.get('brand_color') as string) || undefined,
+    logo_url: (formData.get('logo_url') as string) || undefined,
   }
 
   const parsed = CreateTenantSchema.safeParse(raw)
