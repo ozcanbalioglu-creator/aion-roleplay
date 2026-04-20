@@ -25,7 +25,10 @@ export async function inviteUserAction(formData: FormData) {
   }
 
   const parsed = InviteUserSchema.safeParse(raw)
-  if (!parsed.success) return { error: parsed.error.issues[0].message }
+  if (!parsed.success) {
+    const errors = parsed.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ')
+    return { error: errors || 'Geçersiz girdi' }
+  }
 
   const supabase = await createServiceClient()
 
@@ -42,7 +45,7 @@ export async function inviteUserAction(formData: FormData) {
 
   if (inviteError) return { error: 'Davet gönderilemedi: ' + inviteError.message }
 
-  const { error: profileError } = await supabase.from('users').insert({
+  const { error: profileError } = await supabase.from('users').upsert({
     id: authData.user.id,
     email: parsed.data.email,
     full_name: parsed.data.full_name,
@@ -51,7 +54,7 @@ export async function inviteUserAction(formData: FormData) {
     is_active: true,
   })
 
-  if (profileError) return { error: 'Kullanıcı profili oluşturulamadı.' }
+  if (profileError) return { error: 'Kullanıcı profili oluşturulamadı: ' + profileError.message }
 
   revalidatePath('/tenant/users')
   return { success: `${parsed.data.email} adresine davet gönderildi.` }

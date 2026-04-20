@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ import {
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { useServerAction } from '@/hooks/useServerAction'
 import { inviteUserAction } from '@/lib/actions/user.actions'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 interface InviteUserDialogProps {
   open: boolean
@@ -27,12 +28,18 @@ interface InviteUserDialogProps {
 
 export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) {
   const formRef = useRef<HTMLFormElement>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const { execute, isPending } = useServerAction(inviteUserAction, {
     onSuccess: () => {
       formRef.current?.reset()
+      setError(null)
       onOpenChange(false)
     },
+    onError: (errorMessage) => {
+      setError(errorMessage)
+      console.error('Kullanıcı davet hatası:', errorMessage)
+    }
   })
 
   return (
@@ -42,6 +49,11 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
           <DialogTitle>Kullanıcı Davet Et</DialogTitle>
         </DialogHeader>
         <form ref={formRef} action={(fd) => execute(fd)} className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           <div className="space-y-2">
             <Label htmlFor="full_name">Ad Soyad</Label>
             <Input id="full_name" name="full_name" placeholder="Ad Soyad" required />
