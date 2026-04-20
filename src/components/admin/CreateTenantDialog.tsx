@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { useServerAction } from '@/hooks/useServerAction'
 import { createTenantAction } from '@/lib/actions/tenant.actions'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 interface CreateTenantDialogProps {
   open: boolean
@@ -29,12 +30,19 @@ function slugify(value: string) {
 export function CreateTenantDialog({ open, onOpenChange }: CreateTenantDialogProps) {
   const formRef = useRef<HTMLFormElement>(null)
   const slugRef = useRef<HTMLInputElement>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const { execute, isPending } = useServerAction(createTenantAction, {
     onSuccess: () => {
       formRef.current?.reset()
+      setError(null)
       onOpenChange(false)
     },
+    onError: (err) => {
+      const message = err instanceof Error ? err.message : 'Bilinmeyen hata'
+      setError(message)
+      console.error('Tenant oluşturma hatası:', message)
+    }
   })
 
   function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -54,6 +62,11 @@ export function CreateTenantDialog({ open, onOpenChange }: CreateTenantDialogPro
           <DialogTitle>Yeni Tenant Oluştur</DialogTitle>
         </DialogHeader>
         <form ref={formRef} action={handleFormAction} className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           <div className="space-y-2">
             <Label htmlFor="name">Kurum Adı</Label>
             <Input
