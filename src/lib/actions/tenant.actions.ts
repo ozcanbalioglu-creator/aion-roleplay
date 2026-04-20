@@ -82,8 +82,8 @@ export async function createTenantAction(formData: FormData) {
     return { error: 'Admin kullanıcı oluşturulamadı: ' + authError?.message }
   }
 
-  // 3. Profile (users tablosu) oluştur
-  const { error: profileError } = await supabase.from('users').insert({
+  // 3. Profile (users tablosu) güncelle (otomatik oluşmuş olabilir)
+  const { error: profileError } = await supabase.from('users').upsert({
     id: authData.user.id,
     email: parsed.data.admin_email,
     full_name: parsed.data.admin_full_name,
