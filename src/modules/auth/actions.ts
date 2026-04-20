@@ -53,6 +53,14 @@ export async function loginAction(_state: LoginResult, formData: FormData): Prom
     redirect('/consent')
   }
 
+  const role = data.user.user_metadata?.role as string | undefined
+  if (role === 'super_admin') {
+    redirect('/admin')
+  }
+  if (role === 'tenant_admin') {
+    redirect('/tenant')
+  }
+
   redirect('/dashboard')
 }
 

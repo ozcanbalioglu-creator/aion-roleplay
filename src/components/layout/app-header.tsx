@@ -42,81 +42,88 @@ function getInitials(name: string): string {
 
 export function AppHeader({ user, tenant, unreadCount = 0, onSignOut }: AppHeaderProps) {
   return (
-    <header className="flex h-14 items-center gap-2 border-b bg-card px-4 lg:px-6">
-      <SidebarTrigger className="-ml-1" />
-      <Separator orientation="vertical" className="h-4 mr-2" />
-
-      {/* Tenant branding */}
-      {tenant && (
-        <div className="flex items-center gap-2">
-          {tenant.logo_url ? (
-            <img
-              src={tenant.logo_url}
-              alt={tenant.name}
-              className="h-6 w-auto object-contain"
-            />
-          ) : (
-            <span className="text-sm font-semibold text-foreground">{tenant.name}</span>
-          )}
-        </div>
-      )}
-
-      <div className="flex-1" />
-
-      {/* Notifications */}
-      <Button variant="ghost" size="icon" className="relative" aria-label="Bildirimler">
-        <Bell className="h-4 w-4" />
-        {unreadCount > 0 && (
-          <Badge
-            variant="destructive"
-            className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px] flex items-center justify-center"
-          >
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </Badge>
+    <header className="flex h-20 items-center justify-between gap-2 px-8 lg:px-12 bg-surface/80 backdrop-blur-md z-30 sticky top-0">
+      <div className="flex items-center gap-6">
+        <SidebarTrigger className="-ml-2 text-on-surface hover:bg-surface-container-low transition-colors rounded-full" />
+        
+        {/* Tenant branding */}
+        {tenant && (
+          <div className="flex items-center gap-2">
+            {tenant.logo_url ? (
+              <img
+                src={tenant.logo_url}
+                alt={tenant.name}
+                className="h-6 w-auto object-contain"
+              />
+            ) : (
+              <span className="text-xl font-headline italic font-semibold text-on-background">{tenant.name}</span>
+            )}
+          </div>
         )}
-      </Button>
+      </div>
 
-      {/* User menu */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="flex items-center gap-2 px-2">
-            <Avatar className="h-7 w-7">
-              <AvatarImage src={user.avatar_url} alt={user.full_name} />
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                {getInitials(user.full_name)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="hidden md:flex flex-col items-start">
-              <span className="text-sm font-medium leading-tight">{user.full_name}</span>
-              <span className="text-xs text-muted-foreground leading-tight">
-                {ROLE_LABELS[user.role] ?? user.role}
-              </span>
+      <nav className="hidden md:flex space-x-6 absolute left-1/2 -translate-x-1/2">
+        {/* Placeholder Navigation mapping to aesthetic */}
+        <a href="/dashboard" className="text-on-primary-container border-b-2 border-on-primary-container pb-1 font-body font-medium text-sm transition-all duration-300">Merkez</a>
+        <a href="/dashboard/progress" className="text-on-surface-variant hover:text-on-surface font-body font-medium text-sm transition-all duration-300">Gelişim</a>
+        <a href="/dashboard/sessions" className="text-on-surface-variant hover:text-on-surface font-body font-medium text-sm transition-all duration-300">Kütüphane</a>
+      </nav>
+
+      <div className="flex items-center gap-6">
+        {/* Notifications */}
+        <Button variant="ghost" size="icon" className="relative rounded-full hover:bg-surface-container-high transition-colors text-on-surface-variant" aria-label="Bildirimler">
+          <Bell className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <Badge
+              variant="destructive"
+              className="absolute 0-right-1 h-4 min-w-4 px-1 text-[10px] flex items-center justify-center rounded-full"
+            >
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </Badge>
+          )}
+        </Button>
+
+        {/* User menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <div className="flex items-center gap-3 cursor-pointer group">
+              <div className="hidden md:flex flex-col items-end">
+                <span className="text-sm font-semibold font-body text-on-background leading-tight group-hover:text-on-primary-container transition-colors">{user.full_name}</span>
+                <span className="text-xs font-label text-on-surface-variant uppercase tracking-widest mt-1">
+                  {ROLE_LABELS[user.role] ?? user.role}
+                </span>
+              </div>
+              <Avatar className="h-10 w-10 border border-outline-variant/20 shadow-sm transition-transform duration-300 group-hover:scale-105">
+                <AvatarImage src={user.avatar_url ?? undefined} alt={user.full_name} className="object-cover" />
+                <AvatarFallback className="bg-surface-container-highest text-on-primary-container text-xs font-bold">
+                  {getInitials(user.full_name)}
+                </AvatarFallback>
+              </Avatar>
             </div>
-            <ChevronDown className="h-3 w-3 text-muted-foreground hidden md:block" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuLabel className="font-normal">
-            <div className="flex flex-col space-y-0.5">
-              <p className="text-sm font-medium">{user.full_name}</p>
-              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-            </div>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>
-            <User className="mr-2 h-4 w-4" />
-            Profilim
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="text-destructive focus:text-destructive"
-            onClick={onSignOut}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Çıkış Yap
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 mt-2 border-outline-variant/10 shadow-2xl rounded-xl bg-surface p-2">
+            <DropdownMenuLabel className="font-normal px-2 py-3">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-bold text-on-background">{user.full_name}</p>
+                <p className="text-xs text-on-surface-variant truncate">{user.email}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-outline-variant/10" />
+            <DropdownMenuItem className="focus:bg-surface-container-low rounded-lg py-3 cursor-pointer text-sm font-medium">
+              <User className="mr-3 h-4 w-4 text-on-primary-container" />
+              Profesyonel Profil
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-outline-variant/10" />
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive focus:bg-error-container/20 rounded-lg py-3 cursor-pointer text-sm font-medium"
+              onClick={onSignOut}
+            >
+              <LogOut className="mr-3 h-4 w-4" />
+              Sistemden Ayrıl
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </header>
   )
 }

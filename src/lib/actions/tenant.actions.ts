@@ -10,6 +10,9 @@ const CreateTenantSchema = z.object({
   slug: z.string().min(2).regex(/^[a-z0-9-]+$/, 'Slug sadece küçük harf, rakam ve tire içerebilir'),
   brand_color: z.string().optional(),
   logo_url: z.string().url().or(z.literal('')).optional(),
+  admin_full_name: z.string().min(2, 'Ad-soyad en az 2 karakter olmalı'),
+  admin_email: z.string().email('Geçerli bir e-posta adresi girin'),
+  admin_password: z.string().min(8, 'Şifre en az 8 karakter olmalı'),
 })
 
 export async function createTenantAction(formData: FormData) {
@@ -23,6 +26,9 @@ export async function createTenantAction(formData: FormData) {
     slug: formData.get('slug') as string,
     brand_color: (formData.get('brand_color') as string) || undefined,
     logo_url: (formData.get('logo_url') as string) || undefined,
+    admin_full_name: formData.get('admin_full_name') as string,
+    admin_email: formData.get('admin_email') as string,
+    admin_password: formData.get('admin_password') as string,
   }
 
   const parsed = CreateTenantSchema.safeParse(raw)
@@ -43,18 +49,58 @@ export async function createTenantAction(formData: FormData) {
   if (existsError) return { error: 'Kontrol hatası.' }
   if (existing) return { error: 'Bu slug zaten kullanılıyor.' }
 
-  const { error } = await supabase.from('tenants').insert({
-    name: parsed.data.name,
-    slug: parsed.data.slug,
-    brand_color: parsed.data.brand_color || null,
-    logo_url: parsed.data.logo_url || null,
+  // 1. Tenant oluştur
+  const { data: tenantData, error: tenantError } = await supabase
+    .from('tenants')
+    .insert({
+      name: parsed.data.name,
+      slug: parsed.data.slug,
+      brand_color: parsed.data.brand_color || null,
+      logo_url: parsed.data.logo_url || null,
+      is_active: true,
+    })
+    .select('id')
+    .single()
+
+  if (tenantError || !tenantData) return { error: 'Tenant oluşturulamadı: ' + tenantError?.message }
+
+  // 2. Admin kullanıcı oluştur (Auth)
+  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    email: parsed.data.admin_email,
+    password: parsed.data.admin_password,
+    email_confirm: true,
+    user_metadata: {
+      full_name: parsed.data.admin_full_name,
+      role: 'tenant_admin',
+      tenant_id: tenantData.id,
+    },
+  })
+
+  if (authError || !authData.user) {
+    // Tenant oluşmuş ama admin oluşmadıysa, tenant'ı sil
+    await supabase.from('tenants').delete().eq('id', tenantData.id)
+    return { error: 'Admin kullanıcı oluşturulamadı: ' + authError?.message }
+  }
+
+  // 3. Profile (users tablosu) oluştur
+  const { error: profileError } = await supabase.from('users').insert({
+    id: authData.user.id,
+    email: parsed.data.admin_email,
+    full_name: parsed.data.admin_full_name,
+    role: 'tenant_admin',
+    tenant_id: tenantData.id,
     is_active: true,
   })
 
-  if (error) return { error: 'Tenant oluşturulamadı: ' + error.message }
+  if (profileError) {
+    // Rollback: Auth user'ı sil, tenant'ı sil
+    await supabase.auth.admin.deleteUser(authData.user.id)
+    await supabase.from('tenants').delete().eq('id', tenantData.id)
+    return { error: 'Profil oluşturulamadı: ' + profileError.message }
+  }
 
   revalidatePath('/admin/tenants')
-  return { success: 'Tenant başarıyla oluşturuldu.' }
+  return { success: 'Tenant ve admin başarıyla oluşturuldu.' }
 }
 
 export async function toggleTenantStatusAction(tenantId: string, isActive: boolean) {

@@ -1,0 +1,60 @@
+import { createServerClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth'
+
+export async function getSessionReport(sessionId: string) {
+  const currentUser = await getCurrentUser()
+  if (!currentUser) return null
+
+  const supabase = await createServerClient()
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .select(`
+      id, status, started_at, completed_at, duration_seconds,
+      personas(id, name, title, personality_type),
+      scenarios(id, title, difficulty_level, target_skills),
+      evaluations(
+        id, overall_score, strengths, development_areas,
+        coaching_note, manager_insight, created_at,
+        dimension_scores(
+          dimension_code, score, evidence, feedback
+        )
+      )
+    `)
+    .eq('id', sessionId)
+    .eq('user_id', currentUser.id)
+    .single()
+
+  if (error || !data) return null
+
+  return {
+    session: data,
+    evaluation: (data.evaluations as any[])?.[0] ?? null,
+    persona: data.personas as any,
+    scenario: data.scenarios as any,
+  }
+}
+
+// Kullanıcının bu persona ile geçmiş ortalama skoru (trend için)
+export async function getPersonaScoreHistory(userId: string, personaId: string) {
+  const supabase = await createServerClient()
+
+  const { data } = await supabase
+    .from('sessions')
+    .select(`
+      completed_at,
+      evaluations(overall_score)
+    `)
+    .eq('user_id', userId)
+    .eq('persona_id', personaId)
+    .eq('status', 'completed')
+    .order('completed_at', { ascending: true })
+    .limit(10)
+
+  return (data ?? [])
+    .map((s) => ({
+      date: s.completed_at,
+      score: (s.evaluations as any[])?.[0]?.overall_score ?? null,
+    }))
+    .filter((s) => s.score !== null)
+}

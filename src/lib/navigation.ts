@@ -57,6 +57,7 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
         { label: 'Seans Başlat', href: '/dashboard/sessions/new', icon: Mic },
         { label: 'Seanslarım', href: '/dashboard/sessions', icon: MessagesSquare },
         { label: 'Gelişimim', href: '/dashboard/progress', icon: BarChart3 },
+        { label: 'Başarılarım', href: '/dashboard/achievements', icon: Trophy },
       ]
     },
     {
@@ -109,6 +110,7 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
         { label: 'Kullanıcılar', href: '/tenant/users', icon: Users },
         { label: 'Personalar', href: '/tenant/personas', icon: UserCircle },
         { label: 'Senaryolar', href: '/tenant/scenarios', icon: BookOpen },
+        { label: 'Gamification', href: '/tenant/gamification', icon: Trophy },
       ]
     },
     {
@@ -131,6 +133,13 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
         { label: 'Tenant Yönetimi', href: '/admin/tenants', icon: Building2 },
         { label: 'Prompt Yönetimi', href: '/admin/prompts', icon: FileText },
         { label: 'Rubric Yapılandırması', href: '/admin/rubrics', icon: Shield },
+      ]
+    },
+    {
+      title: 'İçerik Yönetimi',
+      items: [
+        { label: 'Personalar', href: '/tenant/personas', icon: UserCircle },
+        { label: 'Senaryolar', href: '/tenant/scenarios', icon: BookOpen },
       ]
     }
   ]

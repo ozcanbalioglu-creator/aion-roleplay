@@ -74,14 +74,19 @@ CREATE TRIGGER users_updated_at
 -- ─── Auto-create user profile on auth.users insert ───────────────────────────
 CREATE OR REPLACE FUNCTION handle_new_auth_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  default_tenant_id UUID;
 BEGIN
+  -- İlk bulduğu aktif tenant'ı al (fallback için)
+  SELECT id INTO default_tenant_id FROM public.tenants WHERE is_active = true LIMIT 1;
+
   INSERT INTO public.users (id, email, full_name, role, tenant_id)
   VALUES (
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
-    COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'user'),
-    (NEW.raw_user_meta_data->>'tenant_id')::UUID
+    COALESCE((NEW.raw_user_meta_data->>'role')::public.user_role, 'user'::public.user_role),
+    COALESCE((NEW.raw_user_meta_data->>'tenant_id')::UUID, default_tenant_id)
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;

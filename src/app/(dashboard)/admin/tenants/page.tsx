@@ -1,23 +1,22 @@
 import { PageHeader } from '@/components/admin/PageHeader'
-import { Button } from '@/components/ui/button'
-import { PlusIcon } from 'lucide-react'
+import { TenantTable } from '@/components/admin/TenantTable'
+import { CreateTenantDialog } from '@/components/admin/CreateTenantDialog'
+import { getTenants } from '@/lib/actions/tenant.actions'
+import { CreateTenantButton } from './CreateTenantButton'
+
+export const dynamic = 'force-dynamic'
 
 export default async function TenantsPage() {
+  const tenants = await getTenants()
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Tenant Yönetimi"
-        description="Kurumlarınızı yönetin"
-        action={
-          <Button>
-            <PlusIcon className="mr-2 h-4 w-4" />
-            Yeni Tenant
-          </Button>
-        }
+        description="Platform kurumlarını görüntüleyin ve yönetin"
+        action={<CreateTenantButton />}
       />
-      <div className="rounded-lg border p-6">
-        <p className="text-muted-foreground">Tenant tablosu ve oluştur dialog — Faz 5.2'de oluşturulacak (TenantTable, CreateTenantDialog bileşenleri)</p>
-      </div>
+      <TenantTable tenants={tenants} />
     </div>
   )
 }

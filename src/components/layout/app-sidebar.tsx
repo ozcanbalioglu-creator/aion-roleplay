@@ -17,9 +17,17 @@ import {
 import { cn } from '@/lib/utils/cn'
 import { getNavSections } from '@/lib/navigation'
 import type { AppUser, UserRole } from '@/types'
+import { Sparkles } from 'lucide-react'
+import { LevelBar } from '@/components/ui/LevelBar'
 
 interface AppSidebarProps {
   user: AppUser
+  gamProfile?: {
+    level: number
+    progressPercent: number
+    xp_points: number
+    nextLevelXP: number
+  } | null
 }
 
 const LEVEL_LABELS: Record<number, string> = {
@@ -30,34 +38,28 @@ const LEVEL_LABELS: Record<number, string> = {
   5: 'Usta Koç'
 }
 
-export function AppSidebar({ user }: AppSidebarProps) {
+export function AppSidebar({ user, gamProfile }: AppSidebarProps) {
   const pathname = usePathname()
   const sections = getNavSections(user.role as UserRole)
 
   return (
-    <Sidebar variant="inset">
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
-        <div className="flex items-center gap-2">
-          {/* Logo placeholder */}
-          <div className="h-8 w-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
-            <span className="text-sidebar-primary-foreground font-bold text-sm">R</span>
-          </div>
-          <div>
-            <p className="text-sidebar-foreground font-semibold text-sm leading-tight">
-              Roleplay
-            </p>
-            <p className="text-sidebar-foreground/60 text-xs leading-tight">
-              Koçluk Platformu
-            </p>
-          </div>
+    <Sidebar variant="sidebar" collapsible="icon">
+      <SidebarHeader className="border-b border-sidebar-border/30 px-6 py-8">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-headline italic text-sidebar-foreground tracking-wide">
+            The Mirror
+          </h1>
+          <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50 font-bold font-label">
+            Professional Sanctum
+          </p>
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="px-2 py-4">
         {sections.map((section, i) => (
-          <SidebarGroup key={i}>
+          <SidebarGroup key={i} className="mb-4">
             {section.title && (
-              <SidebarGroupLabel className="text-sidebar-foreground/50 uppercase text-[10px] font-semibold tracking-wider px-4">
+              <SidebarGroupLabel className="text-sidebar-foreground/40 uppercase text-[10px] font-bold tracking-[0.2em] px-4 mb-2">
                 {section.title}
               </SidebarGroupLabel>
             )}
@@ -72,15 +74,20 @@ export function AppSidebar({ user }: AppSidebarProps) {
                         asChild
                         isActive={isActive}
                         className={cn(
-                          'text-sidebar-foreground/80 hover:text-sidebar-foreground',
-                          isActive && 'text-sidebar-primary font-medium'
+                          'transition-all duration-300 rounded-full my-1 py-6 px-4',
+                          isActive 
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground font-bold shadow-md' 
+                            : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-border/30 font-medium'
                         )}
                       >
                         <Link href={item.href}>
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.label}</span>
+                          <item.icon className="h-5 w-5" />
+                          <span className="ml-2 font-body">{item.label}</span>
                           {item.badge && (
-                            <span className="ml-auto text-[10px] bg-sidebar-primary text-sidebar-primary-foreground px-1.5 py-0.5 rounded-full font-medium">
+                            <span className={cn(
+                              "ml-auto text-[10px] px-2 py-1 rounded-full font-bold uppercase tracking-wider",
+                              isActive ? "bg-sidebar-primary-foreground/20 text-sidebar-primary-foreground" : "bg-sidebar-primary/20 text-sidebar-primary"
+                            )}>
                               {item.badge}
                             </span>
                           )}
@@ -93,25 +100,29 @@ export function AppSidebar({ user }: AppSidebarProps) {
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
+        
+        {/* CTA Section */}
+        <div className="px-4 mt-8 pb-4">
+            <Link 
+              href="/dashboard/sessions/new"
+              className="w-full py-4 px-4 bg-sidebar-foreground text-sidebar rounded-full text-sm font-bold shadow-lg shadow-sidebar-foreground/10 hover:opacity-90 transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+                <Sparkles className="w-4 h-4" />
+                Yeni Yansıma
+            </Link>
+        </div>
       </SidebarContent>
 
       {/* User level footer — sadece 'user' ve 'manager' rolü için */}
-      {(user.role === 'user' || user.role === 'manager') && (
-        <SidebarFooter className="border-t border-sidebar-border p-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-sidebar-foreground/70 text-xs">
-                Seviye 1 — {LEVEL_LABELS[1]}
-              </span>
-              <span className="text-sidebar-primary text-xs font-semibold">0 XP</span>
-            </div>
-            <div className="h-1.5 bg-sidebar-border rounded-full overflow-hidden">
-              <div
-                className="h-full bg-sidebar-primary rounded-full transition-all"
-                style={{ width: '5%' }}
-              />
-            </div>
-          </div>
+      {(user.role === 'user' || user.role === 'manager') && gamProfile && (
+        <SidebarFooter className="border-t border-sidebar-border/30 p-4 bg-sidebar-accent/5">
+          <LevelBar
+            level={gamProfile.level}
+            progressPercent={gamProfile.progressPercent}
+            xpPoints={gamProfile.xp_points}
+            nextLevelXP={gamProfile.nextLevelXP}
+            compact
+          />
         </SidebarFooter>
       )}
     </Sidebar>

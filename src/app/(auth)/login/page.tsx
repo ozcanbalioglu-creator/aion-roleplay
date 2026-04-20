@@ -17,17 +17,9 @@ function LoginFormContent() {
 
   return (
     <>
-      <div className="space-y-2 text-center">
-        {/* Mobile logo */}
-        <div className="flex justify-center mb-4 lg:hidden">
-          <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-xl">R</span>
-          </div>
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight">Giriş Yap</h1>
-        <p className="text-muted-foreground text-sm">
-          Koçluk platformuna hoş geldiniz
-        </p>
+      <div className="space-y-2">
+        <h2 className="text-3xl font-headline italic text-on-background">Hoş geldiniz</h2>
+        <p className="font-body text-sm text-on-surface-variant font-light">Mirror hesabınıza erişim sağlayın.</p>
       </div>
 
       {state.error && (
@@ -44,57 +36,78 @@ function LoginFormContent() {
         </Alert>
       )}
 
-      <form action={formAction} className="space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="email">E-posta</Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            placeholder="ad@sirket.com"
-            autoComplete="email"
-            required
-            disabled={isPending}
-          />
+      <form action={formAction} className="space-y-6">
+        {/* Input Email */}
+        <div className="space-y-2">
+          <Label htmlFor="email" className="block font-label text-[10px] uppercase tracking-widest text-on-surface-variant ml-1">E-posta</Label>
+          <div className="relative group">
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="isim@sirket.com"
+              autoComplete="email"
+              required
+              disabled={isPending}
+            />
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="password">Şifre</Label>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            placeholder="••••••••"
-            autoComplete="current-password"
-            required
-            disabled={isPending}
-          />
+
+        {/* Input Password */}
+        <div className="space-y-2">
+          <div className="flex justify-between items-center px-1">
+            <Label htmlFor="password" className="block font-label text-[10px] uppercase tracking-widest text-on-surface-variant">Şifre</Label>
+            <a href="#" className="font-label text-[10px] uppercase tracking-widest text-on-primary-container hover:opacity-70 transition-opacity">Şifremi Unuttum</a>
+          </div>
+          <div className="relative group">
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              placeholder="••••••••"
+              autoComplete="current-password"
+              required
+              disabled={isPending}
+            />
+          </div>
         </div>
-        <Button type="submit" className="w-full" disabled={isPending}>
-          {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isPending ? 'Giriş yapılıyor...' : 'Giriş Yap'}
+
+        {/* Submit Button */}
+        <Button type="submit" variant="default" className="w-full" disabled={isPending}>
+          {isPending && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+          {isPending ? 'Giriş yapılıyor...' : 'Giriş yap'}
         </Button>
       </form>
 
-      <p className="text-center text-xs text-muted-foreground">
-        Giriş yaparak{' '}
-        <a
-          href="/kvkk"
-          className="underline underline-offset-4 hover:text-foreground transition-colors"
-        >
-          KVKK Aydınlatma Metnini
-        </a>{' '}
-        okuduğunuzu kabul etmiş olursunuz.
-      </p>
+      {/* Divider */}
+      <div className="relative flex items-center py-4">
+        <div className="flex-grow border-t border-outline-variant/10"></div>
+        <span className="flex-shrink mx-4 font-label text-[10px] uppercase tracking-[0.3em] text-outline">veya</span>
+        <div className="flex-grow border-t border-outline-variant/10"></div>
+      </div>
+
+      {/* SSO Button */}
+      <Button type="button" variant="outline" className="w-full h-14 rounded-full font-body font-medium hover:bg-surface-container-highest transition-all duration-300">
+        <img alt="Google Logo" className="w-5 h-5 mr-3" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCgNWqlUWCyC2bJYJSGRaHf6H2syHcd8c08FWZg1r4IUEIJ6jOrF-soxpl8KuBuIro1CZvUmQlMMPgnVNGUw7BpWyAOA2EgkH41QKQi9SdfReRrt1zt3zkpdgRKCpkGia2WpLg-03PfBuofpsqVqfIc4vb8WJhisf3ijBjrvO3Qvks9JJtWSvrD7B5ky5wiBtSn3NIkz4hEx0ecd97QCCy_bqxsP45J6TCy9535djyvXHtpTNhWN1huizyC6OxDCt339NpDIwu4f76L" />
+        SSO ile Giriş
+      </Button>
+
+      {/* Footer Action */}
+      <div className="text-center pt-8">
+        <a href="#" className="group inline-flex items-center gap-2 font-label text-[10px] uppercase tracking-widest text-on-surface-variant hover:text-on-primary-container transition-colors duration-300">
+          <span className="material-symbols-outlined text-[16px]">qr_code_2</span>
+          Davet kodun mu var?
+          <span className="w-8 h-[1px] bg-outline-variant/30 group-hover:bg-on-primary-container transition-colors"></span>
+        </a>
+      </div>
     </>
   )
 }
 
 export default function LoginPage() {
   return (
-    <div className="space-y-6">
-      <Suspense fallback={<div className="flex justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
-        <LoginFormContent />
-      </Suspense>
-    </div>
+    <Suspense fallback={<div className="flex justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
+      <LoginFormContent />
+    </Suspense>
   )
 }

@@ -3,8 +3,10 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
 import { MobileNav } from '@/components/layout/mobile-nav'
+import { NotificationPoller } from '@/components/common/NotificationPoller'
 import { getAuthSession } from '@/modules/auth'
 import { logoutAction } from '@/modules/auth/actions'
+import { getGamificationProfile } from '@/lib/queries/gamification.queries'
 
 export default async function DashboardLayout({
   children
@@ -21,21 +23,24 @@ export default async function DashboardLayout({
     redirect('/consent')
   }
 
+  const gamProfile = await getGamificationProfile()
+
   return (
     <SidebarProvider>
-      <AppSidebar user={session.user} />
-      <SidebarInset>
+      <AppSidebar user={session.user} gamProfile={gamProfile} />
+      <SidebarInset className="bg-background flex flex-col min-h-screen">
         <AppHeader
           user={session.user}
           tenant={session.tenant}
           unreadCount={0}
           onSignOut={logoutAction}
         />
-        <main className="flex-1 overflow-auto p-4 lg:p-6 pb-20 md:pb-6">
+        <div className="flex-1 flex flex-col">
           {children}
-        </main>
+        </div>
       </SidebarInset>
       <MobileNav />
+      <NotificationPoller userId={session.user.id} />
     </SidebarProvider>
   )
 }

@@ -56,7 +56,7 @@ export function CreateTenantDialog({ open, onOpenChange }: CreateTenantDialogPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Yeni Tenant Oluştur</DialogTitle>
         </DialogHeader>
@@ -105,6 +105,43 @@ export function CreateTenantDialog({ open, onOpenChange }: CreateTenantDialogPro
               className="h-10 w-20 p-1"
             />
           </div>
+
+          <div className="border-t pt-4">
+            <h3 className="font-semibold text-sm mb-3">Tenant Admin Bilgileri</h3>
+
+            <div className="space-y-2">
+              <Label htmlFor="admin_full_name">Admin Adı Soyadı</Label>
+              <Input
+                id="admin_full_name"
+                name="admin_full_name"
+                placeholder="Örn: Ahmet Yılmaz"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="admin_email">Admin E-posta</Label>
+              <Input
+                id="admin_email"
+                name="admin_email"
+                type="email"
+                placeholder="admin@example.com"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="admin_password">Admin Şifre</Label>
+              <Input
+                id="admin_password"
+                name="admin_password"
+                type="password"
+                placeholder="En az 8 karakter"
+                required
+              />
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2 pt-2">
             <SubmitButton disabled={isPending}>Oluştur</SubmitButton>
           </div>

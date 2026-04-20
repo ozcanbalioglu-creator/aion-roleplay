@@ -1,12 +1,16 @@
+import { redirect } from 'next/navigation'
 import { PageHeader } from '@/components/admin/PageHeader'
 import { getAuthSession } from '@/modules/auth'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
+export const dynamic = 'force-dynamic'
+
 export default async function TenantAdminDashboard() {
   const session = await getAuthSession()
+  if (!session || !session.tenant) redirect('/login')
   const supabase = await createClient()
-  const tenantId = session!.tenant!.id
+  const tenantId = session.tenant.id
 
   const [{ count: userCount }, { count: personaCount }, { count: sessionCount }] =
     await Promise.all([
