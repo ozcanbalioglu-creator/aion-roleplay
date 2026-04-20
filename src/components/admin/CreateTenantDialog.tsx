@@ -38,10 +38,9 @@ export function CreateTenantDialog({ open, onOpenChange }: CreateTenantDialogPro
       setError(null)
       onOpenChange(false)
     },
-    onError: (err) => {
-      const message = err instanceof Error ? err.message : 'Bilinmeyen hata'
-      setError(message)
-      console.error('Tenant oluşturma hatası:', message)
+    onError: (errorMessage) => {
+      setError(errorMessage)
+      console.error('Tenant oluşturma hatası:', errorMessage)
     }
   })
 
