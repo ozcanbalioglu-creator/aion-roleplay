@@ -82,15 +82,11 @@ export async function createTenantAction(formData: FormData) {
     return { error: 'Admin kullanıcı oluşturulamadı: ' + authError?.message }
   }
 
-  // 3. Profile (users tablosu) güncelle (otomatik oluşmuş olabilir)
-  const { error: profileError } = await supabase.from('users').upsert({
-    id: authData.user.id,
-    email: parsed.data.admin_email,
+  // 3. Profile'ı güncelle (trigger tarafından otomatik oluşturuluyor)
+  const { error: profileError } = await supabase.from('users').update({
     full_name: parsed.data.admin_full_name,
-    role: 'tenant_admin',
-    tenant_id: tenantData.id,
     is_active: true,
-  })
+  }).eq('id', authData.user.id)
 
   if (profileError) {
     // Rollback: Auth user'ı sil, tenant'ı sil

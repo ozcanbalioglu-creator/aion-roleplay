@@ -48,16 +48,14 @@ export async function inviteUserAction(formData: FormData) {
 
   if (authError || !authData.user) return { error: 'Kullanıcı oluşturulamadı: ' + authError?.message }
 
-  const { error: profileError } = await supabase.from('users').upsert({
-    id: authData.user.id,
-    email: parsed.data.email,
+  // Trigger tarafından otomatik profile oluşturuluyor, sadece güncelle
+  const { error: profileError } = await supabase.from('users').update({
     full_name: parsed.data.full_name,
     role: parsed.data.role,
-    tenant_id: user.tenant_id,
     is_active: true,
-  })
+  }).eq('id', authData.user.id)
 
-  if (profileError) return { error: 'Kullanıcı profili oluşturulamadı: ' + profileError.message }
+  if (profileError) return { error: 'Kullanıcı profili güncellenemedi: ' + profileError.message }
 
   revalidatePath('/tenant/users')
   return {
