@@ -32,18 +32,21 @@ export async function inviteUserAction(formData: FormData) {
 
   const supabase = await createServiceClient()
 
-  const { data: authData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
-    parsed.data.email,
-    {
-      data: {
-        full_name: parsed.data.full_name,
-        role: parsed.data.role,
-        tenant_id: user.tenant_id,
-      },
-    }
-  )
+  // Geçici şifre oluştur (kullanıcı ilk girişte değiştirir)
+  const tempPassword = Math.random().toString(36).slice(-12) + 'Aa1!'
 
-  if (inviteError) return { error: 'Davet gönderilemedi: ' + inviteError.message }
+  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    email: parsed.data.email,
+    password: tempPassword,
+    email_confirm: true,
+    user_metadata: {
+      full_name: parsed.data.full_name,
+      role: parsed.data.role,
+      tenant_id: user.tenant_id,
+    },
+  })
+
+  if (authError || !authData.user) return { error: 'Kullanıcı oluşturulamadı: ' + authError?.message }
 
   const { error: profileError } = await supabase.from('users').upsert({
     id: authData.user.id,
