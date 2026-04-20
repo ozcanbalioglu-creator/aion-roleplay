@@ -9,7 +9,7 @@ const CreateTenantSchema = z.object({
   name: z.string().min(2, 'Ad en az 2 karakter olmalı'),
   slug: z.string().min(2).regex(/^[a-z0-9-]+$/, 'Slug sadece küçük harf, rakam ve tire içerebilir'),
   brand_color: z.string().optional(),
-  logo_url: z.string().url().optional().or(z.literal('')),
+  logo_url: z.string().url().or(z.literal('')).optional(),
 })
 
 export async function createTenantAction(formData: FormData) {
