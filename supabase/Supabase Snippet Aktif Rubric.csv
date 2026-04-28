@@ -1,0 +1,13 @@
+rubric_id,rubric_name,is_default,is_active,dimension_code,is_required,sort_order
+07c97028-c1ba-4efc-8291-1911b078f405,Koçluk Yetkinlik Rubriği v1,true,true,active_listening,true,1
+07c97028-c1ba-4efc-8291-1911b078f405,Koçluk Yetkinlik Rubriği v1,true,true,powerful_questions,true,2
+07c97028-c1ba-4efc-8291-1911b078f405,Koçluk Yetkinlik Rubriği v1,true,true,summarizing,true,3
+07c97028-c1ba-4efc-8291-1911b078f405,Koçluk Yetkinlik Rubriği v1,true,true,empathy,true,4
+07c97028-c1ba-4efc-8291-1911b078f405,Koçluk Yetkinlik Rubriği v1,true,true,action_clarity,true,5
+07c97028-c1ba-4efc-8291-1911b078f405,Koçluk Yetkinlik Rubriği v1,true,true,non_judgmental,true,6
+07c97028-c1ba-4efc-8291-1911b078f405,Koçluk Yetkinlik Rubriği v1,true,true,assumption_challenging,false,7
+07c97028-c1ba-4efc-8291-1911b078f405,Koçluk Yetkinlik Rubriği v1,true,true,responsibility_opening,false,8
+07c97028-c1ba-4efc-8291-1911b078f405,Koçluk Yetkinlik Rubriği v1,true,true,goal_alignment,false,9
+07c97028-c1ba-4efc-8291-1911b078f405,Koçluk Yetkinlik Rubriği v1,true,true,feedback_quality,false,10
+07c97028-c1ba-4efc-8291-1911b078f405,Koçluk Yetkinlik Rubriği v1,true,true,silence_management,false,11
+07c97028-c1ba-4efc-8291-1911b078f405,Koçluk Yetkinlik Rubriği v1,true,true,reframing,false,12
