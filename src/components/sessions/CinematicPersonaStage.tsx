@@ -13,6 +13,8 @@ import { cn } from '@/lib/utils'
 import { createSessionAction } from '@/lib/actions/session.actions'
 import { toast } from '@/lib/toast'
 import { PersonaInfoColumn } from './PersonaInfoColumn'
+import { SubHeaderShell } from './SubHeaderShell'
+import { NewSessionStepper } from './NewSessionStepper'
 
 /* ─── constants ──────────────────────────────────────────────────────────── */
 
@@ -77,8 +79,17 @@ export function CinematicPersonaStage({ persona, scenarios }: CinematicPersonaSt
     })
   }
 
+  // Stepper currentStep: senaryo seçilmemişse 2, seçilmişse 3 (Seansı Başlat'a hazır).
+  const stepperCurrentStep: 2 | 3 = selectedScenario === null ? 2 : 3
+
   return (
-    <div className="flex flex-1 overflow-hidden h-full">
+    // flex-col + h-full — sayfa wrapper'ı viewport-bounded (h-[calc(100dvh-5rem)]); burada
+    // SubHeaderShell üstte, 2-column row altta yer alır. Sol panel iç scroll, sticky butonlar.
+    <div className="flex flex-col h-full overflow-hidden">
+      <SubHeaderShell>
+        <NewSessionStepper currentStep={stepperCurrentStep} />
+      </SubHeaderShell>
+      <div className="flex flex-1 overflow-hidden">
       {/* ══════════════════════════════════════════════════════════════════
           LEFT PANEL — Persona info (foto üstte, info kartları altta)
       ═══════════════════════════════════════════════════════════════════ */}
@@ -139,6 +150,7 @@ export function CinematicPersonaStage({ persona, scenarios }: CinematicPersonaSt
             onStart={handleStartSession}
           />
         )}
+      </div>
       </div>
     </div>
   )

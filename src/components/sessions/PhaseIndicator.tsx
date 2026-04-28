@@ -32,13 +32,15 @@ export function PhaseIndicator({ currentPhase }: PhaseIndicatorProps) {
                   'w-2 h-2 rounded-full transition-all duration-300',
                   isCompleted && 'bg-amber-500',
                   isCurrent && 'bg-amber-400 ring-2 ring-amber-400/30 w-2.5 h-2.5',
-                  !isCompleted && !isCurrent && 'bg-muted-foreground/30'
+                  !isCompleted && !isCurrent && 'bg-white/25'
                 )}
               />
               <span
                 className={cn(
-                  'text-[9px] hidden sm:block',
-                  isCurrent ? 'text-amber-400 font-medium' : 'text-muted-foreground/50'
+                  'text-[9px] hidden sm:block whitespace-nowrap',
+                  isCurrent && 'text-amber-400 font-medium',
+                  isCompleted && 'text-white/65',
+                  !isCurrent && !isCompleted && 'text-white/55'
                 )}
               >
                 {phase.label}
@@ -48,7 +50,7 @@ export function PhaseIndicator({ currentPhase }: PhaseIndicatorProps) {
               <div
                 className={cn(
                   'h-px w-4 sm:w-8 mb-3 transition-all duration-300',
-                  isCompleted ? 'bg-amber-500' : 'bg-muted-foreground/20'
+                  isCompleted ? 'bg-amber-500' : 'bg-white/15'
                 )}
               />
             )}

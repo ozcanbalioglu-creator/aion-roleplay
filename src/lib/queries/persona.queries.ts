@@ -128,7 +128,8 @@ export async function getPersonaDetail(personaId: string) {
     .select(`
       id, name, title, department, experience_years,
       personality_type, emotional_baseline, resistance_level,
-      cooperativeness, trigger_behaviors, is_active,
+      cooperativeness, difficulty, growth_type,
+      trigger_behaviors, is_active,
       scenario_description, coaching_context, coaching_tips, avatar_image_url,
       persona_kpis (kpi_code, kpi_name, value, unit, is_custom)
     `)

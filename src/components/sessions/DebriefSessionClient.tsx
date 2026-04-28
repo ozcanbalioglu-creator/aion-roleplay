@@ -67,9 +67,10 @@ export function DebriefSessionClient({
   const [waitingForEval, setWaitingForEval] = useState(false)
   const [isSkipping, setIsSkipping] = useState(false)
   const [debriefStarting, setDebriefStarting] = useState(false)
-  // Browser autoplay engellemesi: page refresh sonrası gesture chain koptuğu için debrief
-  // sesli başlangıcı user click ile tetikleniyor. Aksi halde audio.play() sessizce reddediliyor.
+  // Auto-start: kullanıcı Seansı Bitir'e basınca direkt buraya gelir. Pre-start butonu yok.
+  // Ancak page refresh sonrası gesture chain koparsa audio.play() reddedilebilir → fallback button.
   const [hasStarted, setHasStarted] = useState(false)
+  const [needsManualStart, setNeedsManualStart] = useState(false)
 
   const { playBlob, stopPlayback, unlock: unlockAudio, isPlaying } = useAudioPlayer()
 
@@ -214,10 +215,22 @@ export function DebriefSessionClient({
     isOutputPlaying: isPlaying,
   })
 
-  // Mount: store reset (debrief otomatik başlamaz, kullanıcı butonla başlatır)
+  // Mount: store reset + auto-start. Aktif seans → Seansı Bitir → debrief geçişi soft nav,
+  // gesture chain genelde korunur. Eğer audio.play() reddedilirse fallback button gösterilir.
   useEffect(() => {
     reset()
     resetVoice()
+
+    // Race koşullarını engelle (StrictMode'da useEffect 2x çalışır)
+    if (debriefStartedRef.current) return
+
+    handleStartDebrief().catch((err) => {
+      console.warn('[DebriefSessionClient] auto-start failed, manual fallback:', err)
+      setNeedsManualStart(true)
+      setHasStarted(false)
+      debriefStartedRef.current = false
+      setDebriefStarting(false)
+    })
   }, [sessionId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Kullanıcı butona basar → audio unlock + debrief başlat. Bu user-gesture, autoplay'i açar.
@@ -276,13 +289,17 @@ export function DebriefSessionClient({
 
     const finish = async () => {
       const result = await finishDebriefAction(sessionId)
-      if (!result.success) return
-
-      if (result.evaluationReady) {
-        router.push(`/dashboard/sessions/${sessionId}/report`)
-      } else {
+      if (!result.success) {
+        console.error('[DebriefSessionClient] finishDebriefAction failed:', result.error)
+        // Yine de waiting ekranına geç — kullanıcı boş ekranda kalmasın
         setWaitingForEval(true)
+        return
       }
+
+      // Her durumda waiting ekranına geç; polling 3sn'de bir checkEvaluationReadyAction
+      // çağırır ve hazır olunca /report'a yönlendirir. Direkt push'ta race condition
+      // çıkıyordu (eval hazır ama sayfa stale → 404).
+      setWaitingForEval(true)
     }
 
     finish()
@@ -312,8 +329,8 @@ export function DebriefSessionClient({
     setDebriefEnded(true)
   }
 
-  // Pre-start ekranı: kullanıcı debrief'i butona basarak başlatır (autoplay engellemesi için)
-  if (!hasStarted) {
+  // Auto-start fallback: gesture chain koptuğunda (page refresh) kullanıcı manuel başlatır
+  if (needsManualStart && !hasStarted) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] gap-6 px-4">
         <div
@@ -325,12 +342,15 @@ export function DebriefSessionClient({
         <div className="text-center space-y-2 max-w-md">
           <h2 className="text-xl font-semibold">Geri Bildirim Zamanı</h2>
           <p className="text-sm text-muted-foreground">
-            Seansın bitti{userName ? `, ${userName}` : ''}. Şimdi koçun seninle kısa bir geri bildirim sohbeti yapacak.
-            1-2 dakika sürer; hazır olduğunda başlat.
+            Sesli başlangıç tarayıcı tarafından engellendi (sayfa yenilenmiş olabilir).
+            Devam etmek için aşağıdaki butona dokun.
           </p>
         </div>
         <button
-          onClick={handleStartDebrief}
+          onClick={() => {
+            setNeedsManualStart(false)
+            handleStartDebrief().catch(() => setNeedsManualStart(true))
+          }}
           disabled={debriefStarting}
           className="px-6 py-3 rounded-full text-sm font-medium text-white transition disabled:opacity-50"
           style={{ background: '#9d6bdf' }}
@@ -344,6 +364,18 @@ export function DebriefSessionClient({
         >
           {isSkipping ? 'Atlıyor...' : 'Atla, doğrudan rapora geç'}
         </button>
+      </div>
+    )
+  }
+
+  // Auto-start henüz tamamlanmadı: brief loading
+  if (!hasStarted) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] gap-4 px-4">
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: '#9d6bdf' }} />
+        <p className="text-sm text-muted-foreground">
+          Geri bildirim sohbeti başlatılıyor{userName ? `, ${userName}` : ''}...
+        </p>
       </div>
     )
   }

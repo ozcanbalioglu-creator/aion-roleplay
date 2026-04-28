@@ -9,13 +9,12 @@ import { useAudioPlayer } from '@/hooks/useAudioPlayer'
 import { useNaturalVoice } from '@/hooks/useNaturalVoice'
 import { blobToWhisperFilename, sanitizeForTTS } from '@/lib/audio-utils'
 import { VoiceMicButton } from './voice/VoiceMicButton'
-import { VoiceWaveform } from './voice/VoiceWaveform'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PhaseIndicator } from './PhaseIndicator'
 import { LogOut, ScrollText } from 'lucide-react'
-import Image from 'next/image'
 import { PersonaInfoColumn } from './PersonaInfoColumn'
+import { SubHeaderShell } from './SubHeaderShell'
 import { endSessionAction, cancelSessionAction } from '@/lib/actions/session.actions'
 import { toast } from 'sonner'
 import { useHeartbeat } from '@/hooks/useHeartbeat'
@@ -425,50 +424,49 @@ export function VoiceSessionClient({
     setIsCancelling(false)
   }
 
-  const personaInitial = personaName?.[0] ?? '?'
-
   return (
-    // CinematicPersonaStage ile aynı stage — sayfa wrapper'ı flex-1 ile parent'tan height alır,
-    // dark gradient sidebar'a kadar uzanır → light gap kaybolur.
+    // h-[calc(100dvh-5rem)] — dashboard layout'un min-h-screen'i + AppHeader (h-20 = 5rem) ile
+    // sticky mic butonu fold altına itiliyordu. Explicit viewport height (header çıkarılmış) +
+    // overflow-hidden ile sol panel iç scroll'a geçiyor, mic her zaman görünür kalıyor.
     <div
-      className="flex flex-col flex-1 overflow-hidden"
+      className="flex flex-col h-[calc(100dvh-5rem)] overflow-hidden"
       style={{
         background: 'linear-gradient(155deg, #1a1a2e 0%, #0f0e22 55%, #1c003a 100%)',
       }}
     >
-      {/* TOP BAR — dark uyumlu, frosted */}
-      <div
-        className="flex items-center justify-between px-6 py-3 flex-shrink-0 z-20"
-        style={{
-          background: 'rgba(15,14,34,0.55)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-        }}
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-full ring-1 ring-white/15 overflow-hidden flex-shrink-0 bg-white/5">
-            {personaAvatarUrl ? (
-              <Image
-                src={personaAvatarUrl}
-                alt={personaName}
-                width={36}
-                height={36}
-                className="object-cover w-full h-full grayscale"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-amber-300 text-sm font-semibold">
-                {personaInitial}
-              </div>
+      {/* SUB-HEADER — /sessions/new ile aynı SubHeaderShell. Persona name/title sol panelde
+          zaten görünüyor, sub-header'da tekrar gereksizdi → kaldırıldı. Sol boş, sağ tarafta
+          phase + mic + aksiyon butonları */}
+      <SubHeaderShell>
+        {/* SOL — Phase indicator */}
+        <PhaseIndicator currentPhase={currentPhase} />
+
+        {/* ORTA — Mic + status text (justify-between sayesinde otomatik ortalanır) */}
+        <div className="flex items-center gap-3 pl-3 border-l border-white/10">
+          <VoiceMicButton
+            turn={turn}
+            isActive={isActive}
+            onClick={handleToggleActive}
+            disabled={isEnded}
+            size="sm"
+          />
+          <p
+            className={cn(
+              'text-[12px] font-medium transition-colors leading-tight max-w-[12rem]',
+              turn === 'recording' && 'text-red-300',
+              turn === 'speaking' && 'text-amber-300',
+              turn === 'listening' && 'text-purple-300 animate-pulse',
+              turn === 'processing' && 'text-white/50',
+              turn === 'idle' && 'text-white/85',
+              turn === 'error' && 'text-red-300',
             )}
-          </div>
-          <div className="min-w-0">
-            <p className="font-medium text-sm truncate text-white/90">{personaName}</p>
-            <p className="text-xs truncate text-white/50">{personaTitle} · {scenarioTitle}</p>
-          </div>
+          >
+            {TURN_LABELS[turn]}
+          </p>
         </div>
 
+        {/* SAĞ — Aksiyon butonları */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <PhaseIndicator currentPhase={currentPhase} />
           <Button
             variant="ghost"
             size="sm"
@@ -493,7 +491,7 @@ export function VoiceSessionClient({
             <span className="hidden sm:inline">Seansı Bitir</span>
           </Button>
         </div>
-      </div>
+      </SubHeaderShell>
 
       <CancelSessionModal
         open={cancelModalOpen}
@@ -530,49 +528,31 @@ export function VoiceSessionClient({
             />
           </div>
 
-          {/* Alt kısım: Mic kontrolü (sticky, frosted) */}
-          <div
-            className="flex-shrink-0 px-6 py-4 z-20"
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              backdropFilter: 'blur(16px)',
-              borderTop: '1px solid rgba(255,255,255,0.08)',
-            }}
-          >
-            <div className="flex flex-col items-center gap-2">
-              <VoiceWaveform turn={turn} className="h-7 w-32 opacity-80" />
-              <VoiceMicButton
-                turn={turn}
-                isActive={isActive}
-                onClick={handleToggleActive}
-                disabled={isEnded}
-              />
-              <p
-                className={cn(
-                  'text-xs h-4 font-medium transition-colors',
-                  turn === 'recording' && 'text-red-300',
-                  turn === 'speaking' && 'text-amber-300',
-                  turn === 'listening' && 'text-purple-300 animate-pulse',
-                  turn === 'processing' && 'text-white/50',
-                  turn === 'idle' && 'text-white/70',
-                  turn === 'error' && 'text-red-300',
+          {/* Alt kısım: Status bar — sadece hata/ended durumunda görünür, mic sub-header'a taşındı */}
+          {(errorMessage || isEnded) && (
+            <div
+              className="flex-shrink-0 px-6 py-3 z-20"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                backdropFilter: 'blur(16px)',
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <div className="flex flex-col items-center gap-2">
+                {errorMessage && (
+                  <p className="text-xs text-red-300 max-w-xs text-center">{errorMessage}</p>
                 )}
-              >
-                {TURN_LABELS[turn]}
-              </p>
-              {errorMessage && (
-                <p className="text-xs text-red-300 max-w-xs text-center">{errorMessage}</p>
-              )}
-              {isEnded && (
-                <Badge
-                  variant="outline"
-                  className="text-amber-300 border-amber-500/30 bg-amber-500/10"
-                >
-                  Seans tamamlandı · Debrief başlatılıyor...
-                </Badge>
-              )}
+                {isEnded && (
+                  <Badge
+                    variant="outline"
+                    className="text-amber-300 border-amber-500/30 bg-amber-500/10"
+                  >
+                    Seans tamamlandı · Debrief başlatılıyor...
+                  </Badge>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* ════════════════ SAĞ — Transkript (light surface, CinematicPersonaStage'in scenario list yerine) */}

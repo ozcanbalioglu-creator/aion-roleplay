@@ -6,6 +6,7 @@ import {
 import { PersonaSelectionStep } from '@/components/sessions/PersonaSelectionStep'
 import { CinematicPersonaStage } from '@/components/sessions/CinematicPersonaStage'
 import { NewSessionStepper } from '@/components/sessions/NewSessionStepper'
+import { SubHeaderShell } from '@/components/sessions/SubHeaderShell'
 import { notFound } from 'next/navigation'
 
 interface NewSessionPageProps {
@@ -31,30 +32,34 @@ export default async function NewSessionPage({ searchParams }: NewSessionPagePro
   const scenarios =
     currentStep === 2 && personaId ? await getScenariosForPersona(personaId) : []
 
+  // Adım 2/3 — CinematicPersonaStage kendi SubHeaderShell+Stepper'ını render ediyor
+  // (senaryo seçilince step 3'e geçmek için iç state'e ihtiyaç var).
   if (currentStep === 2 && personaDetail) {
     return (
-      // Wrapper sahnenin dark gradient'ını taşır — sidebar bg-background gap'i kaybolur,
-      // stepper ve stage aynı dark zemin üstünde seamless akar.
       <div
-        className="flex flex-col flex-1 overflow-hidden"
+        // h-[calc(100dvh-5rem)] — AppHeader yüksekliğini düş; sub-header + içerik bu hattın
+        // içinde dağılır, sayfa-bazlı scroll yerine iç scroll oluşur.
+        className="flex flex-col h-[calc(100dvh-5rem)] overflow-hidden"
         style={{
           background: 'linear-gradient(155deg, #1a1a2e 0%, #0f0e22 55%, #1c003a 100%)',
         }}
       >
-        <div className="px-6 py-4 shrink-0">
-          <NewSessionStepper currentStep={currentStep} />
-        </div>
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <CinematicPersonaStage persona={personaDetail} scenarios={scenarios} />
-        </div>
+        <CinematicPersonaStage persona={personaDetail} scenarios={scenarios} />
       </div>
     )
   }
 
+  // Adım 1 — Persona listesi
   return (
-    <div className="mx-auto max-w-4xl w-full px-6 py-8 space-y-8">
-      <NewSessionStepper currentStep={currentStep} />
-      <PersonaSelectionStep personas={personas} />
+    <div className="flex flex-col h-[calc(100dvh-5rem)] overflow-hidden">
+      <SubHeaderShell>
+        <NewSessionStepper currentStep={1} />
+      </SubHeaderShell>
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-4xl w-full px-6 py-8 space-y-8">
+          <PersonaSelectionStep personas={personas} />
+        </div>
+      </div>
     </div>
   )
 }

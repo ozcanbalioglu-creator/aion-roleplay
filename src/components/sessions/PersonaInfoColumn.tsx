@@ -11,8 +11,11 @@ import Image from 'next/image'
  * Render hiyerarşisi:
  *   1. Avatar (büyük, grayscale, purple shadow halo)
  *   2. Name + Title + Emotional Baseline badge
- *   3. Üst sıra: Deneyim, Persona Tipi (2 kart yan yana)
- *   4. Orta sıra: Zorluk / Direnç / İşbirliği (3 kompakt kart)
+ *   3. Üst sıra (4'lü): Deneyim + Zorluk + Direnç + İşbirliği
+ *      - Deneyim: sayı + "yıl"
+ *      - Zorluk/Direnç/İşbirliği: 5 noktadan oluşan dot meter + level etiketi
+ *        (Çok Düşük / Düşük / Orta / Yüksek / Çok Yüksek)
+ *   4. Persona Tipi (varsa, kendi satırında)
  *   5. Senaryo Bağlamı (varsa)
  *   6. Koçluk Bağlamı (varsa)
  *   7. Tetikleyici Davranış tag'leri (varsa)
@@ -54,6 +57,14 @@ const GROWTH_TYPE_LABELS: Record<string, string> = {
   resistant_experience: 'Dirençli Deneyim',
   new_to_role: 'Yeni Göreve Başlayan',
   motivation_crisis: 'Motivasyon Krizi',
+}
+
+const LEVEL_LABELS: Record<number, string> = {
+  1: 'Çok Düşük',
+  2: 'Düşük',
+  3: 'Orta',
+  4: 'Yüksek',
+  5: 'Çok Yüksek',
 }
 
 export function PersonaInfoColumn({
@@ -158,28 +169,31 @@ export function PersonaInfoColumn({
 
       {/* ─── Info kartlar ─── */}
       <div className="relative z-10 px-6 pb-6 space-y-3">
-        {/* Deneyim + Persona Tipi (yan yana) */}
-        {(experienceYears != null || growthType) && (
-          <div className="grid grid-cols-2 gap-3">
-            {experienceYears != null && (
-              <InfoCard label="Deneyim" value={`${experienceYears} yıl`} />
+        {/* Deneyim + Zorluk + Direnç + İşbirliği — tek satır 4'lü grid */}
+        {(experienceYears != null ||
+          difficulty != null ||
+          resistanceLevel != null ||
+          cooperativeness != null) && (
+          <div className="grid grid-cols-4 gap-2">
+            {experienceYears != null && <ExperienceCard years={experienceYears} />}
+            {difficulty != null && (
+              <DotMetricCard label="Zorluk" value={difficulty} color="#f59e0b" />
             )}
-            {growthType && (
-              <InfoCard
-                label="Persona Tipi"
-                value={GROWTH_TYPE_LABELS[growthType] ?? growthType}
-              />
+            {resistanceLevel != null && (
+              <DotMetricCard label="Direnç" value={resistanceLevel} color="#22c55e" />
+            )}
+            {cooperativeness != null && (
+              <DotMetricCard label="İşbirliği" value={cooperativeness} color="#22c55e" />
             )}
           </div>
         )}
 
-        {/* Zorluk / Direnç / İşbirliği (3'lü kompakt) */}
-        {(difficulty != null || resistanceLevel != null || cooperativeness != null) && (
-          <div className="grid grid-cols-3 gap-2">
-            {difficulty != null && <ScoreCard label="Zorluk" value={difficulty} />}
-            {resistanceLevel != null && <ScoreCard label="Direnç" value={resistanceLevel} />}
-            {cooperativeness != null && <ScoreCard label="İşbirliği" value={cooperativeness} />}
-          </div>
+        {/* Persona Tipi (varsa, kendi satırı) */}
+        {growthType && (
+          <InfoCard
+            label="Persona Tipi"
+            value={GROWTH_TYPE_LABELS[growthType] ?? growthType}
+          />
         )}
 
         {/* Senaryo bağlamı */}
@@ -258,25 +272,67 @@ function InfoCard({ label, value }: { label: string; value: string }) {
   )
 }
 
-function ScoreCard({ label, value }: { label: string; value: number }) {
+function ExperienceCard({ years }: { years: number }) {
   return (
     <div
-      className="rounded-lg px-2 py-2 text-center border"
+      className="rounded-lg px-1.5 py-2.5 border flex flex-col items-center justify-between gap-1.5"
       style={{
         background: 'rgba(255,255,255,0.03)',
         borderColor: 'rgba(157,107,223,0.18)',
+        minHeight: '76px',
       }}
     >
       <p
-        className="font-label font-bold uppercase tracking-[0.14em] mb-0.5"
+        className="font-label font-bold uppercase tracking-[0.10em]"
+        style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)' }}
+      >
+        Deneyim
+      </p>
+      <p className="text-lg font-bold leading-none" style={{ color: '#c4a0f5' }}>
+        {years}
+      </p>
+      <p className="text-[10px] text-white/55">yıl</p>
+    </div>
+  )
+}
+
+function DotMetricCard({
+  label,
+  value,
+  color,
+}: {
+  label: string
+  value: number
+  color: string
+}) {
+  return (
+    <div
+      className="rounded-lg px-1.5 py-2.5 border flex flex-col items-center justify-between gap-1.5"
+      style={{
+        background: 'rgba(255,255,255,0.03)',
+        borderColor: 'rgba(157,107,223,0.18)',
+        minHeight: '76px',
+      }}
+    >
+      <p
+        className="font-label font-bold uppercase tracking-[0.10em]"
         style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)' }}
       >
         {label}
       </p>
-      <p className="text-base font-bold" style={{ color: '#c4a0f5' }}>
-        {value}
-        <span className="text-[10px] text-white/40 font-normal">/5</span>
-      </p>
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <span
+            key={i}
+            className="block w-1.5 h-1.5 rounded-full"
+            style={{
+              background: i <= value ? color : 'transparent',
+              border: `1px solid ${i <= value ? color : 'rgba(255,255,255,0.22)'}`,
+            }}
+          />
+        ))}
+      </div>
+      <p className="text-[10px] text-white/55">{LEVEL_LABELS[value] ?? `${value}/5`}</p>
     </div>
   )
 }

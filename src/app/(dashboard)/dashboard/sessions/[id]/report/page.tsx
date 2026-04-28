@@ -26,7 +26,36 @@ export default async function SessionReportPage({ params }: ReportPageProps) {
   if (!currentUser) notFound()
 
   const report = await getSessionReport(id)
-  if (!report) notFound()
+  if (!report) {
+    console.error('[ReportPage] getSessionReport returned null', {
+      sessionId: id,
+      userId: currentUser.id,
+    })
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100dvh-5rem)] gap-6 px-4 text-center">
+        <div className="h-20 w-20 rounded-full bg-amber-500/10 flex items-center justify-center">
+          <AlertTriangle className="h-10 w-10 text-amber-400" />
+        </div>
+        <div className="space-y-2 max-w-md">
+          <h2 className="text-xl font-semibold">Rapor Hazırlanıyor veya Erişilemiyor</h2>
+          <p className="text-sm text-muted-foreground">
+            Bu seans için rapor henüz oluşmamış olabilir veya bir okuma hatası oldu. Birkaç saniye
+            sonra tekrar dene; sorun sürerse oturumlar listesinden seansa yeniden gir.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <Button asChild variant="outline">
+            <Link href="/dashboard/sessions">Oturumlara Dön</Link>
+          </Button>
+          <Button asChild>
+            <Link href={`/dashboard/sessions/${id}/report`}>
+              <RefreshCw className="h-4 w-4 mr-2" /> Tekrar Dene
+            </Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   // Seans tamamlanmamışsa aktif seans sayfasına yönlendir
   if (report.session.status === 'active' || report.session.status === 'pending') {

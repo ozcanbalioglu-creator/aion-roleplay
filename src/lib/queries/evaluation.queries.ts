@@ -25,7 +25,18 @@ export async function getSessionReport(sessionId: string) {
     .eq('user_id', currentUser.id)
     .single()
 
-  if (error || !data) return null
+  if (error || !data) {
+    console.error('[getSessionReport] query failed', {
+      sessionId,
+      userId: currentUser.id,
+      errCode: error?.code,
+      errMsg: error?.message,
+      hint: error?.hint,
+      details: error?.details,
+      hasData: !!data,
+    })
+    return null
+  }
 
   return {
     session: data,
