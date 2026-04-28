@@ -2,8 +2,9 @@
 
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth'
+import { encrypt, decrypt } from '@/lib/encryption/aes-gcm'
 
 const PERSONA_TYPES = [
   'falling_performance',
@@ -15,12 +16,11 @@ const PERSONA_TYPES = [
 
 const PersonaSchema = z.object({
   name: z.string().min(2, 'Ad en az 2 karakter olmalı'),
-  surname: z.string().optional(),
   title: z.string().min(2, 'Unvan en az 2 karakter olmalı'),
   department: z.string().optional(),
   location: z.string().optional(),
   experience_years: z.coerce.number().min(0).max(50).optional(),
-  personality_type: z.enum(PERSONA_TYPES),
+  growth_type: z.enum(PERSONA_TYPES),
   emotional_baseline: z.enum([
     'motivated', 'demotivated', 'frustrated', 'neutral', 'anxious', 'confident', 'burned_out',
   ]),
@@ -32,6 +32,8 @@ const PersonaSchema = z.object({
   cooperativeness: z.coerce.number().min(1).max(5),
   system_prompt: z.string().min(10, 'Sistem promptu en az 10 karakter olmalı'),
   avatar_image_url: z.string().url().optional().or(z.literal('')),
+  voice_id: z.string().trim().max(100).optional().or(z.literal('')),
+  trigger_behaviors: z.array(z.string()).default([]),
   kpis: z.array(z.object({
     code: z.string(),
     name: z.string(),
@@ -43,28 +45,29 @@ const PersonaSchema = z.object({
 function parseRaw(formData: FormData) {
   return {
     name: formData.get('name') as string,
-    surname: (formData.get('surname') as string) || undefined,
     title: formData.get('title') as string,
     department: (formData.get('department') as string) || undefined,
     location: (formData.get('location') as string) || undefined,
     experience_years: formData.get('experience_years') || undefined,
-    personality_type: formData.get('personality_type'),
+    growth_type: formData.get('growth_type'),
     emotional_baseline: formData.get('emotional_baseline') || 'neutral',
     scenario_description: (formData.get('scenario_description') as string) || undefined,
     coaching_context: (formData.get('coaching_context') as string) || undefined,
     coaching_tips: [(formData.get('coaching_tips') as string) || ''].filter(Boolean),
+    trigger_behaviors: JSON.parse((formData.get('trigger_behaviors') as string) || '[]'),
     difficulty: formData.get('difficulty'),
     resistance_level: formData.get('resistance_level') || 3,
     cooperativeness: formData.get('cooperativeness') || 3,
     system_prompt: formData.get('system_prompt') as string,
     avatar_image_url: formData.get('avatar_image_url') as string,
+    voice_id: (formData.get('voice_id') as string) || '',
     kpis: JSON.parse((formData.get('kpis') as string) || '[]'),
   }
 }
 
 export async function createPersonaAction(formData: FormData) {
   const user = await getCurrentUser()
-  if (!user || !['super_admin', 'tenant_admin'].includes(user.role)) {
+  if (!user || user.role !== 'super_admin') {
     return { error: 'Yetkiniz yok.' }
   }
 
@@ -77,20 +80,21 @@ export async function createPersonaAction(formData: FormData) {
     .from('personas')
     .insert({
       name: parsed.data.name,
-      surname: parsed.data.surname ?? null,
       title: parsed.data.title,
       department: parsed.data.department ?? null,
       location: parsed.data.location ?? null,
       experience_years: parsed.data.experience_years ?? null,
-      personality_type: parsed.data.personality_type,
+      growth_type: parsed.data.growth_type as any,
       emotional_baseline: parsed.data.emotional_baseline as any,
       scenario_description: parsed.data.scenario_description ?? null,
       coaching_context: parsed.data.coaching_context ?? null,
       coaching_tips: parsed.data.coaching_tips,
+      trigger_behaviors: parsed.data.trigger_behaviors,
       difficulty: parsed.data.difficulty,
       resistance_level: parsed.data.resistance_level,
       cooperativeness: parsed.data.cooperativeness,
       avatar_image_url: parsed.data.avatar_image_url || null,
+      voice_id: parsed.data.voice_id?.trim() || null,
       is_active: true,
       created_by: user.id,
       tenant_id: user.role === 'super_admin' ? null : user.tenant_id,
@@ -121,8 +125,7 @@ export async function createPersonaAction(formData: FormData) {
   const { error: promptError } = await supabase.from('persona_prompt_versions').insert({
     persona_id: persona.id,
     version_number: 1,
-    content: parsed.data.system_prompt,
-    content_encrypted: parsed.data.system_prompt, // Geriye uyumluluk için ikisini de yazıyoruz
+    content_encrypted: encrypt(parsed.data.system_prompt),
     is_active: true,
     created_by: user.id,
   })
@@ -135,7 +138,7 @@ export async function createPersonaAction(formData: FormData) {
 
 export async function updatePersonaAction(personaId: string, formData: FormData) {
   const user = await getCurrentUser()
-  if (!user || !['super_admin', 'tenant_admin'].includes(user.role)) {
+  if (!user || user.role !== 'super_admin') {
     return { error: 'Yetkiniz yok.' }
   }
 
@@ -148,20 +151,21 @@ export async function updatePersonaAction(personaId: string, formData: FormData)
     .from('personas')
     .update({
       name: parsed.data.name,
-      surname: parsed.data.surname ?? null,
       title: parsed.data.title,
       department: parsed.data.department ?? null,
       location: parsed.data.location ?? null,
       experience_years: parsed.data.experience_years ?? null,
-      personality_type: parsed.data.personality_type,
+      growth_type: parsed.data.growth_type as any,
       emotional_baseline: parsed.data.emotional_baseline as any,
       scenario_description: parsed.data.scenario_description ?? null,
       coaching_context: parsed.data.coaching_context ?? null,
       coaching_tips: parsed.data.coaching_tips,
+      trigger_behaviors: parsed.data.trigger_behaviors,
       difficulty: parsed.data.difficulty,
       resistance_level: parsed.data.resistance_level,
       cooperativeness: parsed.data.cooperativeness,
       avatar_image_url: parsed.data.avatar_image_url || null,
+      voice_id: parsed.data.voice_id?.trim() || null,
     })
     .eq('id', personaId)
 
@@ -183,41 +187,30 @@ export async function updatePersonaAction(personaId: string, formData: FormData)
   }
 
   // 3. System Prompt Versioning
-  const { data: existing } = await supabase
+  const { data: latestVersion } = await supabase
     .from('persona_prompt_versions')
-    .select('content, content_encrypted')
+    .select('version_number')
     .eq('persona_id', personaId)
-    .eq('is_active', true)
+    .order('version_number', { ascending: false })
+    .limit(1)
     .maybeSingle()
 
-  const existingContent = existing?.content || existing?.content_encrypted || ''
+  await supabase
+    .from('persona_prompt_versions')
+    .update({ is_active: false })
+    .eq('persona_id', personaId)
+    .eq('is_active', true)
 
-  if (existingContent !== parsed.data.system_prompt) {
-    await supabase
-      .from('persona_prompt_versions')
-      .update({ is_active: false })
-      .eq('persona_id', personaId)
-      .eq('is_active', true)
-
-    const { data: latestVersion } = await supabase
-      .from('persona_prompt_versions')
-      .select('version_number')
-      .eq('persona_id', personaId)
-      .order('version_number', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    await supabase.from('persona_prompt_versions').insert({
-      persona_id: personaId,
-      version_number: (latestVersion?.version_number ?? 0) + 1,
-      content: parsed.data.system_prompt,
-      content_encrypted: parsed.data.system_prompt,
-      is_active: true,
-      created_by: user.id,
-    })
-  }
+  await supabase.from('persona_prompt_versions').insert({
+    persona_id: personaId,
+    version_number: (latestVersion?.version_number ?? 0) + 1,
+    content_encrypted: encrypt(parsed.data.system_prompt),
+    is_active: true,
+    created_by: user.id,
+  })
 
   revalidatePath('/tenant/personas')
+  revalidatePath(`/tenant/personas/${personaId}/edit`)
   return { success: 'Persona başarıyla güncellendi.' }
 }
 
@@ -225,20 +218,46 @@ export async function getPersonas() {
   const user = await getCurrentUser()
   if (!user) return []
 
-  const supabase = await createClient()
-  const query = supabase
-    .from('personas')
-    .select('*')
-    .order('created_at', { ascending: false })
+  // Service client kullan: JWT tabanlı RLS yerine kod seviyesinde erişim kontrolü
+  const service = await createServiceClient()
 
-  if (user.role !== 'super_admin') {
-    query.or(`tenant_id.eq.${user.tenant_id},tenant_id.is.null`)
+  const PERSONA_SELECT = '*, persona_kpis(kpi_code, kpi_name, value, unit, is_custom)'
+
+  if (user.role === 'super_admin') {
+    const { data, error } = await service
+      .from('personas')
+      .select(PERSONA_SELECT)
+      .order('created_at', { ascending: false })
+    if (error) return []
+    return data ?? []
   }
 
-  const { data, error } = await query
+  const { data: mappings } = await service
+    .from('persona_tenant_mapping')
+    .select('persona_id')
+    .eq('tenant_id', user.tenant_id)
+    .eq('is_active', true)
 
+  if (mappings && mappings.length > 0) {
+    const { data, error } = await service
+      .from('personas')
+      .select(PERSONA_SELECT)
+      .in('id', mappings.map((m) => m.persona_id))
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+    if (error) return []
+    return data ?? []
+  }
+
+  // Atama yoksa: global personaları göster (tenant_id = null)
+  const { data, error } = await service
+    .from('personas')
+    .select(PERSONA_SELECT)
+    .is('tenant_id', null)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
   if (error) return []
-  return data
+  return data ?? []
 }
 
 export async function getPersonaWithPrompt(personaId: string) {
@@ -250,7 +269,7 @@ export async function getPersonaWithPrompt(personaId: string) {
     supabase.from('personas').select('*').eq('id', personaId).single(),
     supabase
       .from('persona_prompt_versions')
-      .select('content, content_encrypted')
+      .select('content_encrypted')
       .eq('persona_id', personaId)
       .eq('is_active', true)
       .maybeSingle(),
@@ -258,9 +277,26 @@ export async function getPersonaWithPrompt(personaId: string) {
   ])
 
   if (!persona) return null
+
+  let systemPrompt = ''
+  if (promptVersion?.content_encrypted) {
+    try {
+      systemPrompt = decrypt(promptVersion.content_encrypted)
+    } catch {
+      systemPrompt = promptVersion.content_encrypted
+    }
+  }
+
+  const coachingTips = Array.isArray(persona.coaching_tips)
+    ? persona.coaching_tips
+    : (typeof persona.coaching_tips === 'string' && persona.coaching_tips)
+      ? [persona.coaching_tips]
+      : []
+
   return {
     ...persona,
-    system_prompt: promptVersion?.content || promptVersion?.content_encrypted || '',
+    coaching_tips: coachingTips,
+    system_prompt: systemPrompt,
     kpis: kpis?.map(k => ({
       code: k.kpi_code === 'ozel_kpi' ? 'ozel_kpi' : k.kpi_code,
       name: k.kpi_name,
@@ -272,7 +308,7 @@ export async function getPersonaWithPrompt(personaId: string) {
 
 export async function togglePersonaStatusAction(personaId: string, isActive: boolean) {
   const user = await getCurrentUser()
-  if (!user || !['super_admin', 'tenant_admin'].includes(user.role)) {
+  if (!user || user.role !== 'super_admin') {
     return { error: 'Yetkiniz yok.' }
   }
 
@@ -286,4 +322,72 @@ export async function togglePersonaStatusAction(personaId: string, isActive: boo
 
   revalidatePath('/tenant/personas')
   return { success: `Persona ${!isActive ? 'aktifleştirildi' : 'pasifleştirildi'}.` }
+}
+
+export async function assignPersonaToTenantAction(personaId: string, tenantId: string) {
+  const user = await getCurrentUser()
+  if (!user || user.role !== 'super_admin') {
+    return { error: 'Sadece Super Admin bu işlemi yapabilir.' }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('persona_tenant_mapping').upsert({
+    persona_id: personaId,
+    tenant_id: tenantId,
+    assigned_by: user.id,
+    is_active: true,
+  }, { onConflict: 'persona_id,tenant_id' })
+
+  if (error) return { error: 'Persona tenant\'a atanamadı.' }
+
+  revalidatePath('/admin/personas')
+  return { success: 'Persona başarıyla tenant\'a atandı.' }
+}
+
+export async function removePersonaFromTenantAction(personaId: string, tenantId: string) {
+  const user = await getCurrentUser()
+  if (!user || user.role !== 'super_admin') {
+    return { error: 'Sadece Super Admin bu işlemi yapabilir.' }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('persona_tenant_mapping')
+    .delete()
+    .eq('persona_id', personaId)
+    .eq('tenant_id', tenantId)
+
+  if (error) return { error: 'Persona tenant\'dan kaldırılamadı.' }
+
+  revalidatePath('/admin/personas')
+  return { success: 'Persona başarıyla tenant\'dan kaldırıldı.' }
+}
+
+export async function getTenantPersonas(tenantId: string) {
+  const user = await getCurrentUser()
+  if (!user) return []
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('tenant_available_personas')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .order('assigned_at', { ascending: false })
+
+  if (error) return []
+  return data
+}
+
+export async function getPersonaTenantMappings() {
+  const user = await getCurrentUser()
+  if (!user || user.role !== 'super_admin') return []
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('persona_tenant_mapping')
+    .select('persona_id, tenant_id, is_active')
+    .eq('is_active', true)
+
+  if (error) return []
+  return data
 }

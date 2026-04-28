@@ -2,33 +2,27 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { PersonaDetailSheet } from '@/components/admin/PersonaDetailSheet'
 import { useServerAction } from '@/hooks/useServerAction'
 import { togglePersonaStatusAction } from '@/lib/actions/persona.actions'
-import { PencilIcon } from 'lucide-react'
+import { PencilIcon, UserCircle } from 'lucide-react'
 import type { Persona } from '@/types'
 import { cn } from '@/lib/utils'
-
-const GROWTH_LABELS: Record<string, string> = {
-  falling_performance: 'Düşen Performans',
-  rising_performance: 'Yükselen Performans',
-  resistant_experience: 'Dirençli Deneyim',
-  new_starter: 'Yeni Göreve Başlayan',
-  motivation_crisis: 'Motivasyon Krizi',
-}
 
 const DIFFICULTY_COLORS = ['', 'bg-green-500', 'bg-lime-500', 'bg-yellow-500', 'bg-orange-500', 'bg-red-500']
 
 interface PersonaGridProps {
   personas: Persona[]
+  isSuperAdmin?: boolean
 }
 
-export function PersonaGrid({ personas }: PersonaGridProps) {
+export function PersonaGrid({ personas, isSuperAdmin = false }: PersonaGridProps) {
   const [confirmTarget, setConfirmTarget] = useState<Persona | null>(null)
+  const [detailPersona, setDetailPersona] = useState<Persona | null>(null)
   const { execute, isPending } = useServerAction(togglePersonaStatusAction)
 
   if (personas.length === 0) {
@@ -41,71 +35,125 @@ export function PersonaGrid({ personas }: PersonaGridProps) {
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {personas.map((persona) => (
-          <Card key={persona.id} className="flex flex-col bg-card/60 backdrop-blur-sm border-border/40 hover:border-primary/40 transition-all group shadow-sm hover:shadow-xl">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-lg font-bold tracking-tight">
-                    {persona.first_name ? `${persona.first_name} ${persona.last_name || ''}` : persona.name}
-                  </CardTitle>
-                  <p className="text-xs font-medium text-on-primary-container/70 uppercase tracking-widest">{persona.title}</p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {personas.map((persona) => {
+          const displayName = persona.name
+
+          return (
+            <Card
+              key={persona.id}
+              onClick={() => setDetailPersona(persona)}
+              className="overflow-hidden bg-card border-border/40 shadow-md hover:shadow-xl hover:border-primary/40 transition-all cursor-pointer"
+            >
+              {/* ── 3 Kolon: Foto | Kimlik | Detay ── */}
+              <CardContent className="p-0">
+                <div className="flex h-28">
+
+                  {/* Kolon 1: Fotoğraf */}
+                  <div className="w-20 shrink-0 overflow-hidden">
+                    {persona.avatar_image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={persona.avatar_image_url}
+                        alt={displayName}
+                        className="h-full w-full object-cover object-[center_15%]"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
+                        {displayName?.[0]
+                          ? <span className="text-2xl font-bold uppercase">{displayName[0]}</span>
+                          : <UserCircle className="h-8 w-8" />
+                        }
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Kolon 2: Ad / Ünvan / Durum */}
+                  <div className="flex flex-1 flex-col justify-between border-x border-border/20 px-3 py-2.5 min-w-0">
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="font-semibold text-sm leading-tight truncate">{displayName}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider truncate leading-tight">
+                        {persona.title}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      {persona.personality_type && (
+                        <p className="text-[10px] text-muted-foreground truncate">{persona.personality_type}</p>
+                      )}
+                      <StatusBadge active={persona.is_active} />
+                    </div>
+                  </div>
+
+                  {/* Kolon 3: Zorluk / Tecrübe */}
+                  <div className="flex w-20 shrink-0 flex-col justify-between px-2.5 py-2.5">
+                    <div className="space-y-1">
+                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Zorluk</p>
+                      <span className="flex flex-wrap gap-0.5">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <span
+                            key={i}
+                            className={cn(
+                              'h-1.5 w-1.5 rounded-full',
+                              i < (persona.difficulty ?? 0)
+                                ? DIFFICULTY_COLORS[persona.difficulty ?? 0]
+                                : 'bg-muted'
+                            )}
+                          />
+                        ))}
+                      </span>
+                    </div>
+                    {persona.experience_years ? (
+                      <div>
+                        <p className="text-xs font-semibold">{persona.experience_years}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Yıl</p>
+                      </div>
+                    ) : null}
+                  </div>
+
                 </div>
-                <StatusBadge active={persona.is_active} />
-              </div>
-            </CardHeader>
-            <CardContent className="flex-1 space-y-4 pb-4">
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary" className="bg-on-primary-container/10 text-on-primary-container border-none text-[10px] uppercase font-bold tracking-tighter px-2 py-0.5">
-                  {GROWTH_LABELS[persona.growth_type] ?? persona.growth_type}
-                </Badge>
-                {persona.experience_years && (
-                  <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-tighter">
-                    {persona.experience_years} Yıl Tecrübe
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Zorluk:</span>
-                <span className="flex gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <span
-                      key={i}
-                      className={`h-2 w-2 rounded-full ${i < (persona.difficulty ?? 0) ? DIFFICULTY_COLORS[persona.difficulty ?? 0] : 'bg-muted'}`}
-                    />
-                  ))}
-                </span>
-              </div>
-            </CardContent>
-            <CardFooter className="gap-3 pt-4 border-t border-border/20">
-              <Button asChild size="sm" variant="outline" className="flex-1 rounded-full text-[10px] uppercase font-bold tracking-widest h-9 border-border/40 hover:bg-surface-container-highest">
-                <Link href={`/tenant/personas/${persona.id}/edit`}>
-                  <PencilIcon className="mr-2 h-3.5 w-3.5" />
-                  Düzenle
-                </Link>
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setConfirmTarget(persona)}
-                disabled={isPending}
-                className={cn(
-                  "flex-1 rounded-full text-[10px] uppercase font-bold tracking-widest h-9",
-                  persona.is_active ? "text-error hover:text-error hover:bg-error/10" : "text-primary hover:text-primary hover:bg-primary/10"
-                )}
-              >
-                {persona.is_active ? 'Pasifleştir' : 'Aktifleştir'}
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+              </CardContent>
+
+              {isSuperAdmin && (
+                <CardFooter className="gap-2 border-t border-border/20 p-2">
+                  <span onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      asChild
+                      size="sm"
+                      variant="outline"
+                      className="h-7 flex-1 rounded-full text-[9px] uppercase tracking-wider border-border/40 px-2"
+                    >
+                      <Link href={`/tenant/personas/${persona.id}/edit`}>
+                        <PencilIcon className="mr-1 h-3 w-3" />
+                        Düzenle
+                      </Link>
+                    </Button>
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => { e.stopPropagation(); setConfirmTarget(persona) }}
+                    disabled={isPending}
+                    className={cn(
+                      'h-7 flex-1 rounded-full text-[9px] uppercase tracking-wider px-2',
+                      persona.is_active
+                        ? 'text-destructive hover:text-destructive hover:bg-destructive/10'
+                        : 'text-primary hover:text-primary hover:bg-primary/10'
+                    )}
+                  >
+                    {persona.is_active ? 'Pasifleştir' : 'Aktifleştir'}
+                  </Button>
+                </CardFooter>
+              )}
+            </Card>
+          )
+        })}
       </div>
+
       <ConfirmDialog
         open={!!confirmTarget}
         onOpenChange={(open) => !open && setConfirmTarget(null)}
         title={confirmTarget?.is_active ? 'Persona Pasifleştir' : 'Persona Aktifleştir'}
-        description={`"${confirmTarget?.first_name || confirmTarget?.name}" personasını ${confirmTarget?.is_active ? 'pasifleştirmek' : 'aktifleştirmek'} istediğinize emin misiniz?`}
+        description={`"${confirmTarget?.name}" personasını ${confirmTarget?.is_active ? 'pasifleştirmek' : 'aktifleştirmek'} istediğinize emin misiniz?`}
         variant={confirmTarget?.is_active ? 'destructive' : 'default'}
         onConfirm={() => {
           if (confirmTarget) {
@@ -113,6 +161,12 @@ export function PersonaGrid({ personas }: PersonaGridProps) {
             setConfirmTarget(null)
           }
         }}
+      />
+
+      <PersonaDetailSheet
+        persona={detailPersona}
+        open={!!detailPersona}
+        onOpenChange={(open) => !open && setDetailPersona(null)}
       />
     </>
   )

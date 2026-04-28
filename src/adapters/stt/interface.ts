@@ -1,6 +1,8 @@
 export interface STTOptions {
   language?: string
   prompt?: string
+  filename?: string  // ör. 'audio.webm', 'audio.mp4' — Whisper format çıkarımı için
+  mimeType?: string  // ör. 'audio/webm', 'audio/mp4'
 }
 
 export interface STTResult {

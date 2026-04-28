@@ -13,47 +13,40 @@ import { Button } from '@/components/ui/button'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
-import { CheckCircle2, Clock, Ban, AlertTriangle, HelpCircle } from 'lucide-react'
+import { AlertTriangle, UserX, Shield, Clock } from 'lucide-react'
 
-const CANCEL_REASONS = [
-  { 
-    value: 'completed_naturally', 
-    label: 'Seansı başarıyla tamamladım', 
-    description: 'Konuşmayı doğal akışında bitirdim.',
-    icon: CheckCircle2,
-    color: 'text-green-500'
-  },
-  { 
-    value: 'time_constraint', 
-    label: 'Zamanım doldu / Şu an devam edemiyorum', 
-    description: 'Kesintiye uğradı, ancak sonradan rapora bakmak istiyorum.',
-    icon: Clock,
-    color: 'text-blue-500'
-  },
-  { 
-    value: 'wrong_scenario', 
-    label: 'Yanlış bir senaryo seçmişim', 
-    description: 'Başka bir senaryoyla yeni bir seans başlatacağım.',
-    icon: Ban,
-    color: 'text-amber-500'
-  },
-  { 
-    value: 'technical_issue', 
-    label: 'Teknik sorun / Ses problemi yaşıyorum', 
-    description: 'Sistemle ilgili bir aksaklık nedeniyle bitiriyorum.',
+const ABANDON_REASONS = [
+  {
+    value: 'technical_issue',
+    label: 'Teknik sorun yaşadım',
+    description: 'Ses, mikrofon veya bağlantı problemi nedeniyle devam edemedim.',
     icon: AlertTriangle,
-    color: 'text-destructive'
+    color: 'text-destructive',
   },
-  { 
-    value: 'other', 
-    label: 'Diğer / Deneme amaçlı açmıştım', 
-    description: '',
-    icon: HelpCircle,
-    color: 'text-muted-foreground'
+  {
+    value: 'persona_wrong_fit',
+    label: 'Persona/karakter beklediğim gibi değildi',
+    description: 'Bu karakter benim çalışmak istediğim profille örtüşmüyor.',
+    icon: UserX,
+    color: 'text-amber-500',
+  },
+  {
+    value: 'scenario_too_hard',
+    label: 'Senaryo çok zordu, şu an hazır değilim',
+    description: 'Bu senaryoya daha iyi hazırlandıktan sonra dönmek istiyorum.',
+    icon: Shield,
+    color: 'text-sky-500',
+  },
+  {
+    value: 'user_interrupted',
+    label: 'Şu an devam edemiyorum',
+    description: 'Dışarıdan gelen bir kesintiden dolayı seansı bırakmam gerekiyor.',
+    icon: Clock,
+    color: 'text-muted-foreground',
   },
 ] as const
 
-export type CancelReason = (typeof CANCEL_REASONS)[number]['value']
+export type CancelReason = (typeof ABANDON_REASONS)[number]['value']
 
 interface CancelSessionModalProps {
   open: boolean
@@ -68,15 +61,16 @@ export function CancelSessionModal({
   onConfirm,
   isLoading,
 }: CancelSessionModalProps) {
-  const [selected, setSelected] = useState<CancelReason>('completed_naturally')
+  const [selected, setSelected] = useState<CancelReason>('technical_issue')
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && !isLoading && onClose()}>
       <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-xl border-border/40">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Seansı Bitir</DialogTitle>
+          <DialogTitle className="text-xl font-bold">Seansı Yarıda Kes</DialogTitle>
           <DialogDescription>
-            Seansı sonlandırmadan önce lütfen bitirme nedeninizi belirtin.
+            Bu seans tamamlanmış sayılmaz ve değerlendirme raporu oluşturulmaz.
+            Neden yarıda bıraktığını belirtir misin?
           </DialogDescription>
         </DialogHeader>
 
@@ -85,10 +79,10 @@ export function CancelSessionModal({
           onValueChange={(v) => setSelected(v as CancelReason)}
           className="space-y-3 mt-4"
         >
-          {CANCEL_REASONS.map((reason) => {
+          {ABANDON_REASONS.map((reason) => {
             const Icon = reason.icon
             const isSelected = selected === reason.value
-            
+
             return (
               <div key={reason.value}>
                 <RadioGroupItem
@@ -99,24 +93,32 @@ export function CancelSessionModal({
                 <Label
                   htmlFor={reason.value}
                   className={cn(
-                    "flex items-start gap-4 p-3 rounded-xl border-2 transition-all cursor-pointer",
-                    isSelected 
-                      ? "border-primary bg-primary/5 ring-1 ring-primary" 
-                      : "border-border/50 hover:border-border hover:bg-muted/50"
+                    'flex items-start gap-4 p-3 rounded-xl border-2 transition-all cursor-pointer',
+                    isSelected
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                      : 'border-border/50 hover:border-border hover:bg-muted/50'
                   )}
                 >
-                  <div className={cn("mt-1 p-2 rounded-lg bg-surface-container-low border border-border/50", reason.color)}>
+                  <div
+                    className={cn(
+                      'mt-1 p-2 rounded-lg bg-surface-container-low border border-border/50',
+                      reason.color
+                    )}
+                  >
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="flex-1 space-y-1">
-                    <p className={cn("text-sm font-semibold", isSelected ? "text-primary" : "text-foreground")}>
+                    <p
+                      className={cn(
+                        'text-sm font-semibold',
+                        isSelected ? 'text-primary' : 'text-foreground'
+                      )}
+                    >
                       {reason.label}
                     </p>
-                    {reason.description && (
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {reason.description}
-                      </p>
-                    )}
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {reason.description}
+                    </p>
                   </div>
                 </Label>
               </div>
@@ -134,14 +136,15 @@ export function CancelSessionModal({
             Vazgeç
           </Button>
           <Button
+            variant="destructive"
             onClick={() => onConfirm(selected)}
             disabled={isLoading}
-            className="flex-1 order-1 sm:order-2 font-bold shadow-lg shadow-primary/20"
+            className="flex-1 order-1 sm:order-2 font-bold"
           >
             {isLoading ? (
-              <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2" />
+              <div className="h-4 w-4 border-2 border-destructive-foreground/30 border-t-destructive-foreground rounded-full animate-spin mr-2" />
             ) : null}
-            Onayla ve Bitir
+            Seansı Yarıda Kes
           </Button>
         </DialogFooter>
       </DialogContent>

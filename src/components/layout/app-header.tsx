@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Bell, LogOut, User, ChevronDown } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,7 @@ const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Süper Admin',
   tenant_admin: 'Şirket Admin',
   hr_admin: 'İK Admin',
+  hr_viewer: 'İK Görüntüleyici',
   manager: 'Yönetici',
   user: 'Kullanıcı'
 }
@@ -46,8 +48,8 @@ export function AppHeader({ user, tenant, unreadCount = 0, onSignOut }: AppHeade
       <div className="flex items-center gap-6">
         <SidebarTrigger className="-ml-2 text-on-surface hover:bg-surface-container-low transition-colors rounded-full" />
         
-        {/* Tenant branding */}
-        {tenant && (
+        {/* Tenant branding — super_admin için gösterme */}
+        {tenant && user.role !== 'super_admin' && (
           <div className="flex items-center gap-2">
             {tenant.logo_url ? (
               <img
@@ -62,12 +64,14 @@ export function AppHeader({ user, tenant, unreadCount = 0, onSignOut }: AppHeade
         )}
       </div>
 
-      <nav className="hidden md:flex space-x-6 absolute left-1/2 -translate-x-1/2">
-        {/* Placeholder Navigation mapping to aesthetic */}
-        <a href="/dashboard" className="text-on-primary-container border-b-2 border-on-primary-container pb-1 font-body font-medium text-sm transition-all duration-300">Merkez</a>
-        <a href="/dashboard/progress" className="text-on-surface-variant hover:text-on-surface font-body font-medium text-sm transition-all duration-300">Gelişim</a>
-        <a href="/dashboard/sessions" className="text-on-surface-variant hover:text-on-surface font-body font-medium text-sm transition-all duration-300">Kütüphane</a>
-      </nav>
+      {/* Merkez/Gelişim/Kütüphane nav — sadece user/manager için */}
+      {(user.role === 'user' || user.role === 'manager') && (
+        <nav className="hidden md:flex space-x-6 absolute left-1/2 -translate-x-1/2">
+          <Link href="/dashboard" className="text-on-primary-container border-b-2 border-on-primary-container pb-1 font-body font-medium text-sm transition-all duration-300">Merkez</Link>
+          <Link href="/dashboard/progress" className="text-on-surface-variant hover:text-on-surface font-body font-medium text-sm transition-all duration-300">Gelişim</Link>
+          <Link href="/dashboard/sessions" className="text-on-surface-variant hover:text-on-surface font-body font-medium text-sm transition-all duration-300">Kütüphane</Link>
+        </nav>
+      )}
 
       <div className="flex items-center gap-6">
         {/* Notifications */}
@@ -109,9 +113,11 @@ export function AppHeader({ user, tenant, unreadCount = 0, onSignOut }: AppHeade
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-outline-variant/10" />
-            <DropdownMenuItem className="focus:bg-surface-container-low rounded-lg py-3 cursor-pointer text-sm font-medium">
-              <User className="mr-3 h-4 w-4 text-on-primary-container" />
-              Profesyonel Profil
+            <DropdownMenuItem asChild className="focus:bg-surface-container-low rounded-lg py-3 cursor-pointer text-sm font-medium">
+              <Link href="/dashboard/profile">
+                <User className="mr-3 h-4 w-4 text-on-primary-container" />
+                Profesyonel Profil
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-outline-variant/10" />
             <DropdownMenuItem

@@ -1,11 +1,11 @@
 import type { UserRole } from '@/types'
+import type { FeatureKey } from '@/lib/features'
 import {
   LayoutDashboard,
   MessagesSquare,
   BarChart3,
   Users,
   UserCircle,
-  Settings,
   Shield,
   BookOpen,
   Mic,
@@ -13,7 +13,9 @@ import {
   Bell,
   Building2,
   FileText,
-  Wrench,
+  MessageSquare,
+  Server,
+  Settings,
   type LucideIcon
 } from 'lucide-react'
 
@@ -21,8 +23,9 @@ export interface NavItem {
   label: string
   href: string
   icon: LucideIcon
-  badge?: string          // "Yeni", "Beta" gibi
-  children?: NavItem[]    // alt menü (kullanılmayabilir V1'de)
+  badge?: string
+  feature?: FeatureKey
+  children?: NavItem[]
 }
 
 export interface NavSection {
@@ -35,17 +38,17 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
     {
       items: [
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-        { label: 'Seans Başlat', href: '/dashboard/sessions/new', icon: Mic },
+        { label: 'Seans Başlat', href: '/dashboard/sessions/new', icon: Mic, feature: 'voice' },
         { label: 'Seanslarım', href: '/dashboard/sessions', icon: MessagesSquare },
-        { label: 'Gelişimim', href: '/dashboard/progress', icon: BarChart3 },
-        { label: 'Başarılarım', href: '/dashboard/achievements', icon: Trophy },
+        { label: 'Gelişimim', href: '/dashboard/progress', icon: BarChart3, feature: 'progressPage' },
+        { label: 'Başarılarım', href: '/dashboard/achievements', icon: Trophy, feature: 'gamification' },
       ]
     },
     {
       title: 'Hesap',
       items: [
         { label: 'Profilim', href: '/dashboard/profile', icon: UserCircle },
-        { label: 'Bildirimler', href: '/dashboard/notifications', icon: Bell },
+        { label: 'Bildirimler', href: '/dashboard/notifications', icon: Bell, feature: 'notificationsPage' },
       ]
     }
   ],
@@ -54,24 +57,25 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
     {
       items: [
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-        { label: 'Seans Başlat', href: '/dashboard/sessions/new', icon: Mic },
+        { label: 'Seans Başlat', href: '/dashboard/sessions/new', icon: Mic, feature: 'voice' },
         { label: 'Seanslarım', href: '/dashboard/sessions', icon: MessagesSquare },
-        { label: 'Gelişimim', href: '/dashboard/progress', icon: BarChart3 },
-        { label: 'Başarılarım', href: '/dashboard/achievements', icon: Trophy },
+        { label: 'Gelişimim', href: '/dashboard/progress', icon: BarChart3, feature: 'progressPage' },
+        { label: 'Başarılarım', href: '/dashboard/achievements', icon: Trophy, feature: 'gamification' },
       ]
     },
     {
       title: 'Ekip Yönetimi',
       items: [
-        { label: 'Ekibim', href: '/manager/team', icon: Users },
-        { label: 'Ekip Raporları', href: '/manager/reports', icon: FileText },
+        { label: 'Kullanıcılar', href: '/tenant/users', icon: Users },
+        { label: 'Ekibim', href: '/manager/team', icon: Users, feature: 'managerPages' },
+        { label: 'Raporlar', href: '/reports', icon: BarChart3, feature: 'managerPages' },
       ]
     },
     {
       title: 'Hesap',
       items: [
         { label: 'Profilim', href: '/dashboard/profile', icon: UserCircle },
-        { label: 'Bildirimler', href: '/dashboard/notifications', icon: Bell },
+        { label: 'Bildirimler', href: '/dashboard/notifications', icon: Bell, feature: 'notificationsPage' },
       ]
     }
   ],
@@ -85,8 +89,29 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
     {
       title: 'Raporlama',
       items: [
+        { label: 'Kullanıcılar', href: '/tenant/users', icon: Users },
         { label: 'Şirket Raporları', href: '/manager/reports', icon: BarChart3 },
-        { label: 'Kullanıcılar', href: '/admin/users', icon: Users },
+      ]
+    },
+    {
+      title: 'Hesap',
+      items: [
+        { label: 'Profilim', href: '/dashboard/profile', icon: UserCircle },
+        { label: 'Bildirimler', href: '/dashboard/notifications', icon: Bell },
+      ]
+    }
+  ],
+
+  hr_viewer: [
+    {
+      items: [
+        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      ]
+    },
+    {
+      title: 'Raporlama',
+      items: [
+        { label: 'Raporlar', href: '/reports', icon: BarChart3 },
       ]
     },
     {
@@ -110,7 +135,9 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
         { label: 'Kullanıcılar', href: '/tenant/users', icon: Users },
         { label: 'Personalar', href: '/tenant/personas', icon: UserCircle },
         { label: 'Senaryolar', href: '/tenant/scenarios', icon: BookOpen },
-        { label: 'Gamification', href: '/tenant/gamification', icon: Trophy },
+        { label: 'Gamification', href: '/tenant/gamification', icon: Trophy, feature: 'gamification' },
+        { label: 'Raporlar', href: '/reports', icon: BarChart3 },
+        { label: 'Kurum Profili', href: '/tenant/settings', icon: Settings },
       ]
     },
     {
@@ -133,18 +160,27 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
         { label: 'Tenant Yönetimi', href: '/admin/tenants', icon: Building2 },
         { label: 'Prompt Yönetimi', href: '/admin/prompts', icon: FileText },
         { label: 'Rubric Yapılandırması', href: '/admin/rubrics', icon: Shield },
+        { label: 'Geri Bildirimler', href: '/admin/feedback', icon: MessageSquare },
+        { label: 'Raporlar', href: '/reports', icon: BarChart3 },
+        { label: 'Sistem Durumu', href: '/admin/system', icon: Server },
       ]
     },
     {
       title: 'İçerik Yönetimi',
       items: [
-        { label: 'Personalar', href: '/tenant/personas', icon: UserCircle },
+        { label: 'Persona-Tenant Atama', href: '/admin/personas', icon: UserCircle },
+        { label: 'Persona Yönetimi', href: '/tenant/personas', icon: UserCircle },
         { label: 'Senaryolar', href: '/tenant/scenarios', icon: BookOpen },
       ]
     }
   ]
 }
 
-export function getNavSections(role: UserRole): NavSection[] {
-  return NAV_CONFIG[role] ?? NAV_CONFIG.user
+export function getNavSections(role: UserRole, flags?: Partial<Record<FeatureKey, boolean>>): NavSection[] {
+  const sections = NAV_CONFIG[role] ?? NAV_CONFIG.user
+  if (!flags) return sections
+  return sections.map(section => ({
+    ...section,
+    items: section.items.filter(item => !item.feature || flags[item.feature]),
+  }))
 }

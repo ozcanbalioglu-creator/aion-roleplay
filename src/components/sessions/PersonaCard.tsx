@@ -1,26 +1,17 @@
 'use client'
 
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { StarIcon, TrophyIcon, ClockIcon, SparklesIcon } from 'lucide-react'
+import { StarIcon, TrophyIcon, ClockIcon, SparklesIcon, UserCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PersonaWithRecommendation } from '@/lib/queries/persona.queries'
 
-const PERSONALITY_LABELS: Record<string, { label: string; color: string }> = {
-  analytical:  { label: 'Analitik',     color: 'bg-blue-500/10 text-blue-700 border-blue-500/20' },
-  driver:      { label: 'Sonuç Odaklı', color: 'bg-red-500/10 text-red-700 border-red-500/20' },
-  expressive:  { label: 'Duygusal',     color: 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20' },
-  amiable:     { label: 'Uyumlu',       color: 'bg-green-500/10 text-green-700 border-green-500/20' },
-  resistant:   { label: 'Dirençli',     color: 'bg-orange-500/10 text-orange-700 border-orange-500/20' },
-  indifferent: { label: 'İlgisiz',      color: 'bg-gray-500/10 text-gray-700 border-gray-500/20' },
+const TAG_CONFIG: Record<string, { label: string; icon: React.ElementType; bg: string; text: string }> = {
+  never_tried: { label: 'İlk kez dene',     icon: SparklesIcon, bg: 'bg-indigo-100 dark:bg-indigo-900/30', text: 'text-indigo-600 dark:text-indigo-400' },
+  low_score:   { label: 'Gelişim fırsatı',  icon: TrophyIcon,   bg: 'bg-amber-100 dark:bg-amber-900/30',  text: 'text-amber-600 dark:text-amber-400'  },
+  stale:       { label: 'Tekrar dene',      icon: ClockIcon,    bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-600 dark:text-orange-400' },
+  other:       { label: '',                 icon: StarIcon,     bg: '',                                    text: 'text-muted-foreground' },
 }
 
-const TAG_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  never_tried: { label: 'İlk kez dene',     icon: SparklesIcon, color: 'text-indigo-600' },
-  low_score:   { label: 'Gelişim fırsatı',  icon: TrophyIcon,   color: 'text-amber-600' },
-  stale:       { label: 'Uzun süredir yok', icon: ClockIcon,    color: 'text-orange-600' },
-  other:       { label: '',                 icon: StarIcon,     color: 'text-gray-400' },
-}
+const DIFFICULTY_COLORS = ['', 'bg-green-500', 'bg-lime-500', 'bg-yellow-500', 'bg-orange-500', 'bg-red-500']
 
 interface PersonaCardProps {
   persona: PersonaWithRecommendation
@@ -28,87 +19,95 @@ interface PersonaCardProps {
 }
 
 export function PersonaCard({ persona, onSelect }: PersonaCardProps) {
-  const personality = PERSONALITY_LABELS[persona.personality_type]
   const tag = TAG_CONFIG[persona.recommendation_tag]
   const TagIcon = tag.icon
+  const displayName = persona.name
+
+  const difficultyValue = persona.difficulty ?? persona.resistance_level ?? 0
 
   return (
-    <Card
-      className="cursor-pointer border transition-all hover:border-primary/50 hover:shadow-md"
+    <button
       onClick={() => onSelect(persona.id)}
+      className="group w-full overflow-hidden rounded-xl border border-border/50 bg-card text-left shadow-sm transition-all hover:border-primary/40 hover:shadow-md"
     >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <p className="font-semibold leading-tight">{persona.name}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{persona.title}</p>
-            {persona.department && (
-              <p className="text-xs text-muted-foreground opacity-75">{persona.department}</p>
-            )}
-          </div>
-          {persona.recommendation_tag !== 'other' && (
-            <div className={cn('flex items-center gap-1 text-xs font-medium', tag.color)}>
-              <TagIcon className="h-3.5 w-3.5" />
-              <span>{tag.label}</span>
+      <div className="flex h-24">
+
+        {/* Kolon 1: Avatar */}
+        <div className="w-20 shrink-0">
+          {persona.avatar_image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={persona.avatar_image_url}
+              alt={displayName}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
+              {displayName?.[0]
+                ? <span className="text-2xl font-bold uppercase">{displayName[0]}</span>
+                : <UserCircle className="h-8 w-8" />
+              }
             </div>
           )}
         </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {/* Kişilik Badge */}
-        <Badge
-          variant="outline"
-          className={cn('text-xs', personality?.color)}
-        >
-          {personality?.label ?? persona.personality_type}
-        </Badge>
 
-        {/* Direnç ve İşbirliği */}
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <p className="text-muted-foreground">Direnç</p>
-            <ResistanceBar level={persona.resistance_level} color="red" />
+        {/* Kolon 2: Kimlik + istatistikler */}
+        <div className="flex flex-1 flex-col justify-between border-x border-border/20 px-3 py-2 min-w-0">
+          <div className="space-y-0.5 min-w-0">
+            <p className="truncate text-sm font-semibold leading-tight">{displayName}</p>
+            <p className="truncate text-[10px] uppercase tracking-wider text-muted-foreground leading-tight">
+              {persona.title}
+            </p>
           </div>
-          <div>
-            <p className="text-muted-foreground">İşbirliği</p>
-            <ResistanceBar level={persona.cooperativeness_level} color="green" />
+
+          {/* Tag */}
+          {persona.recommendation_tag !== 'other' && (
+            <div className={cn('inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium', tag.bg, tag.text)}>
+              <TagIcon className="h-2.5 w-2.5 shrink-0" />
+              <span>{tag.label}</span>
+            </div>
+          )}
+
+          {/* Alt istatistikler */}
+          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+            <span>{persona.completed_sessions} seans</span>
+            {persona.avg_score !== null ? (
+              <span className="flex items-center gap-0.5">
+                <StarIcon className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
+                {persona.avg_score.toFixed(1)}
+              </span>
+            ) : (
+              <span className="italic">Hiç denenmedi</span>
+            )}
           </div>
         </div>
 
-        {/* İstatistik */}
-        <div className="flex items-center justify-between border-t pt-2 text-xs text-muted-foreground">
-          <span>{persona.completed_sessions} seans</span>
-          {persona.avg_score !== null ? (
-            <span className="flex items-center gap-0.5">
-              <StarIcon className="h-3 w-3 fill-amber-400 text-amber-400" />
-              {persona.avg_score.toFixed(1)}
+        {/* Kolon 3: Zorluk + KPI + Tecrübe */}
+        <div className="flex w-20 shrink-0 flex-col justify-between px-2.5 py-2">
+          <div className="space-y-1">
+            <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Zorluk</p>
+            <span className="flex flex-wrap gap-0.5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <span
+                  key={i}
+                  className={cn(
+                    'h-1.5 w-1.5 rounded-full',
+                    i < difficultyValue ? DIFFICULTY_COLORS[difficultyValue] : 'bg-muted'
+                  )}
+                />
+              ))}
             </span>
-          ) : (
-            <span className="italic">Hiç denenmedi</span>
-          )}
-          <span>{persona.kpi_count} KPI</span>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
+          </div>
 
-function ResistanceBar({ level, color }: { level: number; color: 'red' | 'green' }) {
-  return (
-    <div className="mt-1 flex gap-0.5">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div
-          key={i}
-          className={cn(
-            'h-1.5 flex-1 rounded-full',
-            i < level
-              ? color === 'red'
-                ? 'bg-red-400'
-                : 'bg-green-400'
-              : 'bg-muted'
-          )}
-        />
-      ))}
-    </div>
+          <div className="space-y-0.5">
+            {persona.experience_years ? (
+              <p className="text-xs font-semibold">{persona.experience_years} <span className="text-[9px] font-normal text-muted-foreground">yıl</span></p>
+            ) : null}
+            <p className="text-[9px] text-muted-foreground">{persona.kpi_count} KPI</p>
+          </div>
+        </div>
+
+      </div>
+    </button>
   )
 }

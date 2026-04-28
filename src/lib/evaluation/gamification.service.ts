@@ -8,6 +8,7 @@ interface AwardXPParams {
   overallScore: number
   durationSeconds: number | null
   personaId: string
+  scenarioId: string
 }
 
 interface AwardResult {
@@ -16,11 +17,29 @@ interface AwardResult {
   badgesEarned: string[]
 }
 
+// Persona zorluk çarpanı — yönetmesi daha zor karakterler daha fazla XP
+const PERSONA_DIFFICULTY_MULTIPLIER: Record<number, number> = {
+  1: 1.00,
+  2: 1.15,
+  3: 1.30,
+  4: 1.50,
+  5: 2.00,
+}
+
+// Senaryo zorluk çarpanı — daha karmaşık durumlar daha fazla XP
+const SCENARIO_DIFFICULTY_MULTIPLIER: Record<number, number> = {
+  1: 1.00,
+  2: 1.10,
+  3: 1.20,
+  4: 1.35,
+  5: 1.60,
+}
+
 // XP hesaplama: baz + puan bonusu + süre bonusu
-function calculateXP(overallScore: number, durationSeconds: number | null): number {
+function calculateBaseXP(overallScore: number, durationSeconds: number | null): number {
   const baseXP = 50
-  const scoreBonus = Math.round((overallScore - 1) * 25) // 0-100 arası (skor 1→0, skor 5→100)
-  const durationBonus = durationSeconds && durationSeconds >= 900 ? 20 : 0 // 15+ dakika bonusu
+  const scoreBonus = Math.round((overallScore - 1) * 25)
+  const durationBonus = durationSeconds && durationSeconds >= 900 ? 20 : 0
   return baseXP + scoreBonus + durationBonus
 }
 
@@ -35,7 +54,25 @@ function calculateLevel(totalXP: number): number {
 
 export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResult> {
   const supabase = await createServiceRoleClient()
-  const xpEarned = calculateXP(params.overallScore, params.durationSeconds)
+
+  // Persona ve senaryo zorluk derecelerini paralel çek
+  const [personaResult, scenarioResult] = await Promise.all([
+    supabase.from('personas').select('difficulty').eq('id', params.personaId).single(),
+    supabase.from('scenarios').select('difficulty_level').eq('id', params.scenarioId).single(),
+  ])
+
+  const personaDifficulty: number = (personaResult.data as any)?.difficulty ?? 1
+  const scenarioDifficulty: number = (scenarioResult.data as any)?.difficulty_level ?? 1
+
+  const personaMult = PERSONA_DIFFICULTY_MULTIPLIER[personaDifficulty] ?? 1.0
+  const scenarioMult = SCENARIO_DIFFICULTY_MULTIPLIER[scenarioDifficulty] ?? 1.0
+  const baseXP = calculateBaseXP(params.overallScore, params.durationSeconds)
+  const xpEarned = Math.round(baseXP * personaMult * scenarioMult)
+
+  const hasBonus = personaMult > 1.0 || scenarioMult > 1.0
+  const bonusLabel = hasBonus
+    ? ` [Persona ×${personaMult.toFixed(2)} · Senaryo ×${scenarioMult.toFixed(2)}]`
+    : ''
 
   // Mevcut profili al
   const { data: profile } = await supabase
@@ -69,32 +106,30 @@ export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResu
     })
     .eq('user_id', params.userId)
 
-  // users tablosunu da güncelle (XP ve level senkronize)
+  // users tablosunu senkronize et
   await supabase
     .from('users')
     .update({ xp_points: newXP, level: newLevel })
     .eq('id', params.userId)
 
-  // XP transaction kaydı
+  // XP transaction — çarpan detayı description'a yazılır (kullanıcıya şeffaf)
   await supabase.from('point_transactions').insert({
     user_id: params.userId,
     tenant_id: params.tenantId,
     session_id: params.sessionId,
     points: xpEarned,
     transaction_type: 'session_completion',
-    description: `Seans tamamlandı (puan: ${params.overallScore.toFixed(1)})`,
+    description: `Seans tamamlandı (puan: ${params.overallScore.toFixed(1)})${bonusLabel}`,
   })
 
   // Badge kontrolü
   const badgesEarned: string[] = []
 
-  // Tüm aktif badge'leri getir
   const { data: badges } = await supabase
     .from('badges')
-    .select('id, badge_code, criteria, xp_reward')
+    .select('id, badge_code, name, criteria, xp_reward')
     .eq('is_active', true)
 
-  // Kullanıcının mevcut badge'leri
   const { data: userBadges } = await supabase
     .from('user_badges')
     .select('badge_id')
@@ -102,14 +137,12 @@ export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResu
 
   const earnedBadgeIds = new Set((userBadges as any[])?.map((b: any) => b.badge_id) ?? [])
 
-  // Kazanılmamış badge'ler için kriter kontrolü
   for (const badge of (badges || []) as any[]) {
     if (earnedBadgeIds.has(badge.id)) continue
 
     const criteria = badge.criteria as Record<string, unknown>
     let earned = false
 
-    // Kriter tipleri
     if (criteria.type === 'min_score' && params.overallScore >= (criteria.value as number)) {
       earned = true
     } else if (criteria.type === 'streak' && newStreak >= (criteria.value as number)) {
@@ -118,6 +151,19 @@ export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResu
       earned = true
     } else if (criteria.type === 'xp' && newXP >= (criteria.value as number)) {
       earned = true
+    } else if (criteria.type === 'session_count') {
+      const { count } = await supabase
+        .from('sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', params.userId)
+        .eq('status', 'completed')
+      if ((count ?? 0) >= (criteria.value as number)) earned = true
+    } else if (criteria.type === 'persona_difficulty_min') {
+      // Kullanıcı bu seansda yeterince zor persona ile çalıştı mı?
+      if (personaDifficulty >= (criteria.value as number)) earned = true
+    } else if (criteria.type === 'scenario_difficulty_min') {
+      // Kullanıcı bu seansda yeterince zor senaryo denedi mi?
+      if (scenarioDifficulty >= (criteria.value as number)) earned = true
     }
 
     if (earned) {
@@ -128,15 +174,14 @@ export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResu
         session_id: params.sessionId,
       })
 
-      // Badge XP bonusu
-      if (badge.xp_reward > 0) {
+      if ((badge.xp_reward ?? 0) > 0) {
         await supabase.from('point_transactions').insert({
           user_id: params.userId,
           tenant_id: params.tenantId,
           session_id: params.sessionId,
           points: badge.xp_reward,
           transaction_type: 'badge_earned',
-          description: `Rozet kazanıldı: ${badge.badge_code}`,
+          description: `Rozet kazanıldı: ${badge.name ?? badge.badge_code}`,
         })
       }
 
@@ -144,24 +189,32 @@ export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResu
     }
   }
 
-  // Kazanılan her rozet için bildirim
   for (const badgeCode of badgesEarned) {
     const earnedBadge = (badges as any[])?.find((b: any) => b.badge_code === badgeCode)
     if (earnedBadge) {
-      await notifyBadgeEarned(params.userId, params.tenantId, badgeCode, (earnedBadge as any).name ?? badgeCode)
+      await notifyBadgeEarned(params.userId, params.tenantId, badgeCode, earnedBadge.name ?? badgeCode)
     }
   }
 
-  // Görev ilerleme güncelleme — persona istatistiğini kontrol et
-  const { data: personaStat } = await supabase
-    .from('user_persona_stats')
-    .select('completed_sessions')
-    .eq('user_id', params.userId)
-    .eq('persona_id', params.personaId)
-    .single()
+  // Görev ilerleme — persona + senaryo yenilik kontrolü
+  const [personaStatResult, scenarioStatResult] = await Promise.all([
+    supabase
+      .from('user_persona_stats')
+      .select('completed_sessions')
+      .eq('user_id', params.userId)
+      .eq('persona_id', params.personaId)
+      .single(),
+    supabase
+      .from('sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', params.userId)
+      .eq('scenario_id', params.scenarioId)
+      .eq('status', 'completed')
+      .neq('id', params.sessionId),
+  ])
 
-  // Bu seansdan önce 0 completed_sessions -> yeni persona denemesi
-  const isNewPersona = !personaStat || (personaStat as any).completed_sessions <= 1
+  const isNewPersona = !personaStatResult.data || (personaStatResult.data as any).completed_sessions <= 1
+  const isNewScenario = (scenarioStatResult.count ?? 0) === 0
 
   await updateChallengeProgress({
     userId: params.userId,
@@ -169,7 +222,9 @@ export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResu
     sessionId: params.sessionId,
     overallScore: params.overallScore,
     personaId: params.personaId,
+    scenarioId: params.scenarioId,
     isNewPersona,
+    isNewScenario,
   })
 
   return { xpEarned, newLevel, badgesEarned }

@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase/server'
+import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth'
 import type { Persona } from '@/types/index'
 
@@ -23,21 +23,38 @@ export async function getPersonasWithRecommendations(): Promise<PersonaWithRecom
   if (!currentUser) return []
 
   const supabase = await createServerClient()
+  const service = createServiceClient()
 
-  // Tüm aktif personaları al
-  const { data: personas } = await supabase
-    .from('personas')
-    .select(`
-      id, name, title, department, personality_type, emotional_baseline,
-      resistance_level, cooperativeness_level, is_active,
-      trigger_behaviors,
-      persona_kpis (kpi_code, kpi_name, value, unit, is_custom)
-    `)
+  // Tenant'a atanmış persona ID'lerini service client ile çek (JWT RLS bypass)
+  const { data: mappings } = await service
+    .from('persona_tenant_mapping')
+    .select('persona_id')
     .eq('tenant_id', currentUser.tenant_id)
     .eq('is_active', true)
-    .order('name')
 
-  if (!personas) return []
+  const PERSONA_SELECT = `
+    id, name, title, department, experience_years,
+    difficulty, avatar_image_url, personality_type, emotional_baseline,
+    resistance_level, cooperativeness, is_active,
+    scenario_description, coaching_context, coaching_tips, trigger_behaviors,
+    persona_kpis (kpi_code, kpi_name, value, unit, is_custom)
+  `
+
+  const personaRes = mappings && mappings.length > 0
+    ? await service.from('personas').select(PERSONA_SELECT)
+        .in('id', mappings.map((m) => m.persona_id))
+        .eq('is_active', true).order('name')
+    : await service.from('personas').select(PERSONA_SELECT)
+        .is('tenant_id', null)
+        .eq('is_active', true).order('name')
+
+  const { data: personas, error: personasError } = personaRes
+
+  if (personasError) {
+    console.error('[getPersonasWithRecommendations] personas error:', personasError)
+  }
+
+  if (!personas || personas.length === 0) return []
 
   // Kullanıcının persona istatistiklerini VIEW'den al
   const { data: stats } = await supabase
@@ -76,11 +93,10 @@ export async function getPersonasWithRecommendations(): Promise<PersonaWithRecom
 
     return {
       ...p,
-      surname: (p as any).surname ?? null,
-      experience_years: (p as any).experience_years ?? null,
-      scenario_description: (p as any).scenario_description ?? null,
-      coaching_context: (p as any).coaching_context ?? null,
-      coaching_tips: (p as any).coaching_tips ?? [],
+      experience_years: p.experience_years ?? null,
+      scenario_description: p.scenario_description ?? null,
+      coaching_context: p.coaching_context ?? null,
+      coaching_tips: p.coaching_tips ?? [],
       kpi_count: kpiCount,
       completed_sessions: completed,
       avg_score: avgScore,
@@ -106,17 +122,17 @@ export async function getPersonaDetail(personaId: string) {
   const currentUser = await getCurrentUser()
   if (!currentUser) return null
 
-  const supabase = await createServerClient()
-  const { data } = await supabase
+  const service = createServiceClient()
+  const { data } = await service
     .from('personas')
     .select(`
-      id, name, title, department, age_range, experience_years,
+      id, name, title, department, experience_years,
       personality_type, emotional_baseline, resistance_level,
-      cooperativeness_level, trigger_behaviors, is_active,
+      cooperativeness, trigger_behaviors, is_active,
+      scenario_description, coaching_context, coaching_tips, avatar_image_url,
       persona_kpis (kpi_code, kpi_name, value, unit, is_custom)
     `)
     .eq('id', personaId)
-    .eq('tenant_id', currentUser.tenant_id)
     .single()
 
   return data
@@ -126,12 +142,12 @@ export async function getScenariosForPersona(personaId: string) {
   const currentUser = await getCurrentUser()
   if (!currentUser) return []
 
-  const supabase = await createServerClient()
-  const { data } = await supabase
+  const service = createServiceClient()
+  const { data } = await service
     .from('scenarios')
-    .select('id, title, description, difficulty_level, estimated_duration_min, target_skills, context_setup')
+    .select('id, title, description, difficulty_level, estimated_duration_min, target_skills, context_setup, mood_hint')
     .eq('persona_id', personaId)
-    .eq('tenant_id', currentUser.tenant_id)
+    .or(`tenant_id.eq.${currentUser.tenant_id},tenant_id.is.null`)
     .eq('is_active', true)
     .order('difficulty_level')
 

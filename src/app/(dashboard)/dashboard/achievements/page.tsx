@@ -2,20 +2,32 @@ import { getGamificationProfile, getUserBadges, getXPHistory } from '@/lib/queri
 import { getCurrentUser } from '@/lib/auth'
 import { LevelBar } from '@/components/ui/LevelBar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Zap, Flame, Trophy } from 'lucide-react'
-import { notFound } from 'next/navigation'
+import { Zap, Trophy } from 'lucide-react'
+import { redirect, notFound } from 'next/navigation'
+import { features } from '@/lib/features'
+
+const DEFAULT_PROFILE = {
+  xp_points: 0,
+  level: 1,
+  current_streak: 0,
+  weekly_session_count: 0,
+  currentLevelXP: 0,
+  nextLevelXP: 300,
+  progressPercent: 0,
+}
 
 export default async function AchievementsPage() {
+  if (!features.gamification) notFound()
   const currentUser = await getCurrentUser()
-  if (!currentUser) notFound()
+  if (!currentUser) redirect('/login')
 
-  const [profile, userBadges, xpHistory] = await Promise.all([
+  const [profileRaw, userBadges, xpHistory] = await Promise.all([
     getGamificationProfile(),
     getUserBadges(),
     getXPHistory(),
   ])
 
-  if (!profile) notFound()
+  const profile = profileRaw ?? DEFAULT_PROFILE
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-8 py-8 px-6 md:px-12">

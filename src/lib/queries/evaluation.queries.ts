@@ -15,7 +15,7 @@ export async function getSessionReport(sessionId: string) {
       scenarios(id, title, difficulty_level, target_skills),
       evaluations(
         id, overall_score, strengths, development_areas,
-        coaching_note, manager_insight, created_at,
+        coaching_note, manager_insight, status, created_at,
         dimension_scores(
           dimension_code, score, evidence, feedback
         )

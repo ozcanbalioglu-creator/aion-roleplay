@@ -6,10 +6,14 @@ import {
   type DashboardPeriod,
 } from '@/lib/queries/dashboard.queries'
 import { getActiveOrPendingSession } from '@/lib/queries/session.queries'
+import { getMyDevelopmentPlan } from '@/lib/queries/development-plan.queries'
+import { getMyCancellationStats } from '@/lib/queries/cancellation.queries'
 import { DashboardStatCards } from '@/components/dashboard/DashboardStatCards'
 import { WeeklyChallengesWidget } from '@/components/dashboard/WeeklyChallengesWidget'
 import { RecentSessionsList } from '@/components/dashboard/RecentSessionsList'
 import { DimensionProgressCards } from '@/components/dashboard/DimensionProgressCards'
+import { DevelopmentPlanWidget } from '@/components/dashboard/DevelopmentPlanWidget'
+import { CancellationStatsWidget } from '@/components/dashboard/CancellationStatsWidget'
 import { PeriodFilter } from '@/components/dashboard/PeriodFilter'
 import { Button } from '@/components/ui/button'
 import { PlayCircle, PlusCircle, Sparkles } from 'lucide-react'
@@ -41,6 +45,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     dimensionDelta,
     weeklyChallenges,
     activeSession,
+    devPlan,
+    cancelStats,
   ] = await Promise.all([
     getGamificationProfile(),
     getDashboardStats(period),
@@ -51,6 +57,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     getDimensionDelta(),
     getWeeklyChallenges(),
     getActiveOrPendingSession(),
+    getMyDevelopmentPlan(),
+    getMyCancellationStats(),
   ])
 
   return (
@@ -109,6 +117,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             </div>
             <PersonaScoreChart data={personaComparison} />
             <RecentSessionsList sessions={recentSessions} />
+            {cancelStats && cancelStats.totalCancelled > 0 && (
+              <div className="col-span-1 md:col-span-2">
+                <CancellationStatsWidget stats={cancelStats} />
+              </div>
+            )}
           </div>
           
           {/* Boyut İlerleme Kartları */}
@@ -121,13 +134,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <div className="col-span-12 lg:col-span-5 xl:col-span-4 space-y-8">
           <DimensionRadarChart data={dimensionAvgs} />
           <WeeklyChallengesWidget challenges={weeklyChallenges} />
-          
+          <DevelopmentPlanWidget plan={devPlan} compact />
+
           {/* Motivational Quote or Insight */}
           <div className="p-8 rounded-3xl bg-gradient-to-br from-amber-500/10 to-primary/5 border border-amber-500/10 relative overflow-hidden group">
             <Sparkles className="absolute -right-4 -top-4 h-24 w-24 text-amber-500/5 rotate-12 transition-transform group-hover:rotate-45" />
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 mb-4">Günün İçgörüsü</h3>
             <p className="text-sm font-medium italic text-foreground leading-relaxed relative z-10">
-              "Kendi yansımanla her gün yüzleşmek, profesyonel ustalığa giden en hızlı yoldur. Bugün odaklandığın her soru, yarınki başarının temelidir."
+              &ldquo;Kendi yansımanla her gün yüzleşmek, profesyonel ustalığa giden en hızlı yoldur. Bugün odaklandığın her soru, yarınki başarının temelidir.&rdquo;
             </p>
           </div>
         </div>

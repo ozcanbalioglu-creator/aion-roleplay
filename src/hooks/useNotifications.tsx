@@ -30,7 +30,14 @@ export function useNotifications(userId: string | null) {
         .order('created_at', { ascending: true })
         .limit(5)
 
-      if (error || !data?.length) return
+      // 400 = PostgREST schema cache stale (enum değerleri henüz yüklenmedi) — sessizce atla
+      if (error) {
+        if (error.code !== 'PGRST116' && (error as any).status !== 400) {
+          console.error('[useNotifications] query error:', error)
+        }
+        return
+      }
+      if (!data?.length) return
 
       // Toast göster
       for (const notif of data) {

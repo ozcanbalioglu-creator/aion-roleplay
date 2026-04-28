@@ -10,8 +10,9 @@ export class OpenAISTTAdapter implements ISTTAdapter {
 
   async transcribe(audio: Buffer, options: STTOptions = {}): Promise<STTResult> {
     const start = Date.now()
-    // Convert Buffer to Blob-compatible format
-    const file = new File([audio as unknown as BlobPart], 'audio.webm', { type: 'audio/webm' })
+    const filename = options.filename ?? 'audio.webm'
+    const mimeType = options.mimeType ?? 'audio/webm'
+    const file = new File([audio as unknown as BlobPart], filename, { type: mimeType })
 
     const response = await this.client.audio.transcriptions.create({
       model: 'whisper-1',

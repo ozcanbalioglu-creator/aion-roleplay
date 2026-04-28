@@ -55,7 +55,7 @@ export function PersonaMiniCard({ persona }: { persona: Persona }) {
       )}
 
       {/* Tetikleyiciler */}
-      {persona.trigger_behaviors?.length > 0 && (
+      {(persona.trigger_behaviors?.length ?? 0) > 0 && (
         <div>
           <p className="mb-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Dikkat: Tetikleyiciler

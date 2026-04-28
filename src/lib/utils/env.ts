@@ -22,9 +22,11 @@ const envSchema = z.object({
   ELEVENLABS_API_KEY: z.string().min(1),
   ELEVENLABS_DEFAULT_VOICE_ID: z.string().min(1),
 
-  // Queue
-  QSTASH_URL: z.string().url().optional(),
-  QSTASH_TOKEN: z.string().optional(),
+  // Queue (Upstash QStash)
+  UPSTASH_QSTASH_TOKEN: z.string().optional(),
+  UPSTASH_QSTASH_CURRENT_SIGNING_KEY: z.string().optional(),
+  UPSTASH_QSTASH_NEXT_SIGNING_KEY: z.string().optional(),
+  QSTASH_RECEIVER_URL: z.string().url().optional(),
 
   // Email
   RESEND_API_KEY: z.string().optional(),

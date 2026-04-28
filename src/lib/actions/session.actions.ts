@@ -11,7 +11,6 @@ import { scheduleEvaluationJob } from '@/lib/evaluation/evaluation.queue'
 const CreateSessionSchema = z.object({
   personaId: z.string().uuid(),
   scenarioId: z.string().uuid(),
-  sessionMode: z.enum(['text', 'voice']).default('text'),
 })
 
 export async function createSessionAction(input: z.infer<typeof CreateSessionSchema>) {
@@ -26,40 +25,51 @@ export async function createSessionAction(input: z.infer<typeof CreateSessionSch
     return { error: parsed.error.issues[0].message }
   }
 
-  const { personaId, scenarioId, sessionMode } = parsed.data
+  const { personaId, scenarioId } = parsed.data
   const supabase = await createServerClient()
 
-  // Persona ve senaryo bu tenant'a ait mi kontrolü
+  // Persona ve senaryo erişim kontrolü: tenant'a özgü VEYA global (tenant_id IS NULL)
   const [{ data: persona }, { data: scenario }] = await Promise.all([
     supabase
       .from('personas')
       .select('id, is_active')
       .eq('id', personaId)
-      .eq('tenant_id', currentUser.tenant_id)
+      .or(`tenant_id.eq.${currentUser.tenant_id},tenant_id.is.null`)
       .single(),
     supabase
       .from('scenarios')
       .select('id, is_active, estimated_duration_min')
       .eq('id', scenarioId)
-      .eq('tenant_id', currentUser.tenant_id)
+      .or(`tenant_id.eq.${currentUser.tenant_id},tenant_id.is.null`)
       .single(),
   ])
 
   if (!persona || !persona.is_active) return { error: 'Geçersiz veya pasif persona' }
   if (!scenario || !scenario.is_active) return { error: 'Geçersiz veya pasif senaryo' }
 
-  // Tenant'ın aktif rubric template'ini bul
-  const { data: rubricTemplate } = await supabase
-    .from('rubric_templates')
-    .select('id')
-    .eq('tenant_id', currentUser.tenant_id)
-    .eq('is_active', true)
-    .limit(1)
+  // Rubric öncelik sırası:
+  // 1. tenants.rubric_template_id (super admin ataması)
+  // 2. rubric_templates.tenant_id = currentUser.tenant_id (tenant'a özel)
+  // 3. global rubric (tenant_id IS NULL)
+  const { data: tenantRow } = await supabase
+    .from('tenants')
+    .select('rubric_template_id')
+    .eq('id', currentUser.tenant_id)
     .single()
 
-  let finalRubricId = rubricTemplate?.id ?? null
+  let finalRubricId: string | null = tenantRow?.rubric_template_id ?? null
 
-  // Tenant'a ait aktif rubric yoksa global (tenant_id NULL) kullan
+  if (!finalRubricId) {
+    const { data: tenantRubric } = await supabase
+      .from('rubric_templates')
+      .select('id')
+      .eq('tenant_id', currentUser.tenant_id)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle()
+    finalRubricId = tenantRubric?.id ?? null
+  }
+
   if (!finalRubricId) {
     const { data: globalRubric } = await supabase
       .from('rubric_templates')
@@ -67,11 +77,11 @@ export async function createSessionAction(input: z.infer<typeof CreateSessionSch
       .is('tenant_id', null)
       .eq('is_active', true)
       .limit(1)
-      .single()
-
-    if (!globalRubric) return { error: 'Aktif rubric şablonu bulunamadı' }
-    finalRubricId = globalRubric.id
+      .maybeSingle()
+    finalRubricId = globalRubric?.id ?? null
   }
+
+  if (!finalRubricId) return { error: 'Aktif rubric şablonu bulunamadı' }
 
   // Session oluştur (PENDING)
   const { data: session, error: sessionError } = await supabase
@@ -83,7 +93,7 @@ export async function createSessionAction(input: z.infer<typeof CreateSessionSch
       scenario_id: scenarioId,
       rubric_template_id: finalRubricId,
       status: 'pending',
-      session_mode: sessionMode,
+      session_mode: 'voice',
     })
     .select('id')
     .single()
@@ -153,15 +163,19 @@ export async function activateSessionAction(sessionId: string): Promise<
 
   // Sistem promptunu şifreli olarak prompt_logs'a kaydet
   const serviceSupabase = await createServiceRoleClient()
-  await serviceSupabase.from('prompt_logs').insert({
+  const { error: promptLogError } = await serviceSupabase.from('prompt_logs').insert({
     session_id: sessionId,
     tenant_id: session.tenant_id,
     user_id: currentUser.id,
-    prompt_type: 'system',
+    prompt_type: 'role_play_system',
     encrypted_content: encrypt(promptData.systemPrompt),
     model: process.env.OPENAI_LLM_MODEL ?? 'gpt-4.5',
     provider: 'openai'
   })
+  if (promptLogError) {
+    console.error('[activateSessionAction] prompt_logs insert failed:', promptLogError)
+    return { success: false, error: `Sistem prompt kaydedilemedi: ${promptLogError.message}` }
+  }
 
   // PENDING → ACTIVE
   const { error: updateError } = await supabase
@@ -179,7 +193,6 @@ export async function activateSessionAction(sessionId: string): Promise<
   const crypto = await import('crypto')
   const promptHash = crypto.createHash('sha256').update(promptData.systemPrompt).digest('hex').slice(0, 16)
 
-  revalidatePath(`/sessions/${sessionId}`)
   return { success: true, systemPromptHash: promptHash }
 }
 
@@ -208,18 +221,24 @@ export async function endSessionAction(
     ? Math.round((Date.now() - new Date(session.started_at).getTime()) / 1000)
     : null
 
+  // Not: cancellation_reason'ı YAZMIYORUZ — endSessionAction "kapatma" değil "debrief'e geçiş".
+  // Bu enum 'manual_cancel'/'persona_wrong_fit' vs için; user_ended/ai_ended doğal akışın parçası.
+  // Migration 047 enum'u genişletti ama semantik temizlik adına ayrı tutuyoruz.
+  // `reason` parametresi telemetri/audit için imzayı koruyor; ileride end_reason kolonu eklenirse buraya yazılır.
+  void reason
   const { error } = await supabase
     .from('sessions')
     .update({
-      status: 'completed',
+      status: 'debrief_active',
       phase: 'closing',
-      completed_at: new Date().toISOString(),
       duration_seconds: durationSeconds,
-      cancellation_reason: reason
     })
     .eq('id', sessionId)
 
-  if (error) return { success: false, error: 'Seans tamamlanamadı' }
+  if (error) {
+    console.error('[endSessionAction] DB update error:', error)
+    return { success: false, error: 'Seans tamamlanamadı' }
+  }
 
   if (!error) {
     // Değerlendirme job'ını kuyruğa al (fire-and-forget)
@@ -302,6 +321,26 @@ export async function closeDroppedSessionAction(
   if (error) return { success: false, error: 'Kapatma başarısız' }
 
   revalidatePath('/sessions')
+  return { success: true }
+}
+
+export async function retryEvaluationAction(sessionId: string): Promise<{ success: true } | { error: string }> {
+  const currentUser = await getCurrentUser()
+  if (!currentUser) return { error: 'Oturum açılmamış' }
+
+  const serviceSupabase = await createServiceRoleClient()
+
+  // evaluation_failed kaydını processing'e çek (idempotans)
+  await serviceSupabase
+    .from('evaluations')
+    .update({ status: 'processing' })
+    .eq('session_id', sessionId)
+    .eq('status', 'evaluation_failed')
+
+  // Yeni QStash job kuyruğa al
+  await scheduleEvaluationJob(sessionId)
+
+  revalidatePath(`/dashboard/sessions/${sessionId}/report`)
   return { success: true }
 }
 

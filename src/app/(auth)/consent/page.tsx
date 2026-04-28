@@ -52,7 +52,7 @@ export default function ConsentPage() {
           <Separator />
           <p className="font-medium text-foreground">Haklarınız</p>
           <p>
-            KVKK'nın 11. maddesi kapsamında verilerinize erişim, düzeltme ve
+            KVKK&apos;nın 11. maddesi kapsamında verilerinize erişim, düzeltme ve
             silme talep etme hakkınız bulunmaktadır. Talepler 30 iş günü
             içinde yanıtlanır. Silme talepleri platform üzerinden yapılabilir.
           </p>

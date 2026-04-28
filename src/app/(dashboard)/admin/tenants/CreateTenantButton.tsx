@@ -5,7 +5,17 @@ import { Button } from '@/components/ui/button'
 import { CreateTenantDialog } from '@/components/admin/CreateTenantDialog'
 import { PlusIcon } from 'lucide-react'
 
-export function CreateTenantButton() {
+interface RubricTemplateOption {
+  id: string
+  name: string
+  is_default: boolean
+}
+
+interface Props {
+  rubricTemplates?: RubricTemplateOption[]
+}
+
+export function CreateTenantButton({ rubricTemplates = [] }: Props) {
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -13,7 +23,7 @@ export function CreateTenantButton() {
         <PlusIcon className="mr-2 h-4 w-4" />
         Yeni Tenant
       </Button>
-      <CreateTenantDialog open={open} onOpenChange={setOpen} />
+      <CreateTenantDialog open={open} onOpenChange={setOpen} rubricTemplates={rubricTemplates} />
     </>
   )
 }

@@ -1,3 +1,4 @@
+import { unstable_rethrow } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logger'
@@ -33,6 +34,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
 
     return profile as AppUser
   } catch (error) {
+    unstable_rethrow(error)
     logger.error('getCurrentUser failed', { error })
     return null
   }
@@ -53,7 +55,8 @@ export async function getTenant(tenantId: string): Promise<Tenant | null> {
 
     if (error || !data) return null
     return data as Tenant
-  } catch {
+  } catch (error) {
+    unstable_rethrow(error)
     return null
   }
 }
@@ -73,7 +76,8 @@ export async function hasConsent(userId: string): Promise<boolean> {
 
     if (error) return false
     return data !== null
-  } catch {
+  } catch (error) {
+    unstable_rethrow(error)
     return false
   }
 }
@@ -121,6 +125,7 @@ export async function recordConsent(
     logger.info('Consent recorded', { userId, tenantId })
     return true
   } catch (error) {
+    unstable_rethrow(error)
     logger.error('recordConsent exception', { error })
     return false
   }

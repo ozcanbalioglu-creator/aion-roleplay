@@ -10,6 +10,13 @@ interface PersonaSelectionStepProps {
   personas: PersonaWithRecommendation[]
 }
 
+const FILTERS = [
+  { key: 'all',        label: 'Tümü' },
+  { key: 'never_tried', label: 'İlk Kez' },
+  { key: 'low_score',   label: 'Gelişim' },
+  { key: 'stale',       label: 'Tekrar Dene' },
+] as const
+
 export function PersonaSelectionStep({ personas }: PersonaSelectionStepProps) {
   const router = useRouter()
   const [search, setSearch] = useState('')
@@ -18,16 +25,16 @@ export function PersonaSelectionStep({ personas }: PersonaSelectionStepProps) {
   const filtered = personas.filter((p) => {
     const matchesSearch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.title.toLowerCase().includes(search.toLowerCase())
+      (p.title ?? '').toLowerCase().includes(search.toLowerCase())
     const matchesTag = filterTag === 'all' || p.recommendation_tag === filterTag
     return matchesSearch && matchesTag
   })
 
-  const tagCounts = {
+  const counts: Record<string, number> = {
+    all: personas.length,
     never_tried: personas.filter((p) => p.recommendation_tag === 'never_tried').length,
-    low_score: personas.filter((p) => p.recommendation_tag === 'low_score').length,
-    stale: personas.filter((p) => p.recommendation_tag === 'stale').length,
-    other: personas.filter((p) => p.recommendation_tag === 'other').length,
+    low_score:   personas.filter((p) => p.recommendation_tag === 'low_score').length,
+    stale:       personas.filter((p) => p.recommendation_tag === 'stale').length,
   }
 
   const handleSelect = (personaId: string) => {
@@ -35,51 +42,52 @@ export function PersonaSelectionStep({ personas }: PersonaSelectionStepProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-semibold">Persona Seçin</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <h2 className="text-lg font-semibold">Persona Seçin</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
           Koçluk yapacağınız personayı seçin. Önerilen sıralama gelişim fırsatlarınıza göre düzenlendi.
         </p>
       </div>
 
-      {/* Filtre ve Arama */}
-      <div className="flex flex-wrap gap-3">
+      {/* Arama + Filtreler */}
+      <div className="flex flex-wrap items-center gap-2">
         <Input
           placeholder="İsim veya unvan ara..."
           value={search}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-          className="max-w-xs"
+          className="h-8 max-w-xs text-sm"
         />
-        <div className="flex gap-2">
-          {[
-            { key: 'all', label: 'Tümü' },
-            { key: 'never_tried', label: `İlk Kez (${tagCounts.never_tried})` },
-            { key: 'low_score', label: `Gelişim (${tagCounts.low_score})` },
-            { key: 'stale', label: `Tekrar Dene (${tagCounts.stale})` },
-          ].map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilterTag(f.key)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                filterTag === f.key
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-1.5">
+          {FILTERS.map((f) => {
+            const isActive = filterTag === f.key
+            return (
+              <button
+                key={f.key}
+                onClick={() => setFilterTag(f.key)}
+                className={
+                  isActive
+                    ? 'rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary'
+                    : 'rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground hover:border-primary/30 hover:text-foreground transition-colors'
+                }
+              >
+                {f.label}
+                <span className={isActive ? 'ml-1.5 text-primary/70' : 'ml-1.5 text-muted-foreground/70'}>
+                  {counts[f.key] ?? 0}
+                </span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
-      {/* Persona Grid */}
+      {/* Persona Grid — 1 / 2 / 3 kolon */}
       {filtered.length === 0 ? (
         <p className="py-12 text-center text-sm text-muted-foreground">
           Arama kriteriyle eşleşen persona bulunamadı.
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((persona) => (
             <PersonaCard key={persona.id} persona={persona} onSelect={handleSelect} />
           ))}

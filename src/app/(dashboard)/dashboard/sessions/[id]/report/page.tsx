@@ -6,8 +6,10 @@ import { OverallScoreCard } from '@/components/sessions/report/OverallScoreCard'
 import { DimensionScoreBar } from '@/components/sessions/report/DimensionScoreBar'
 import { StrengthsList } from '@/components/sessions/report/StrengthsList'
 import { CoachingNote } from '@/components/sessions/report/CoachingNote'
+import { ReportAudioPlayer } from '@/components/sessions/report/ReportAudioPlayer'
+import { RetryEvaluationButton } from '@/components/sessions/report/RetryEvaluationButton'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, ArrowLeft, RotateCcw, Clock } from 'lucide-react'
+import { RefreshCw, ArrowLeft, Clock, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 
 // Değerlendirme kuyruğa alındıktan sonra tamamlanması 1-2 dakika alır.
@@ -55,8 +57,23 @@ export default async function SessionReportPage({ params }: ReportPageProps) {
             </Link>
           </div>
 
-          {evaluation ? (
+          {evaluation?.status === 'evaluation_failed' ? (
+            /* Kalıcı hata durumu */
+            <div className="py-24 flex flex-col items-center justify-center text-center max-w-lg mx-auto">
+              <div className="h-24 w-24 rounded-full bg-destructive/10 flex items-center justify-center mb-8">
+                <AlertTriangle className="h-10 w-10 text-destructive" />
+              </div>
+              <h2 className="font-headline text-3xl italic mb-4">Değerlendirme Başarısız Oldu</h2>
+              <p className="text-on-surface-variant leading-relaxed mb-8">
+                AI değerlendirme motoru bu seans için birkaç deneme yaptı ancak sonuç üretemedi. Tekrar denemek için aşağıdaki butonu kullanabilirsin.
+              </p>
+              <RetryEvaluationButton sessionId={id} />
+            </div>
+          ) : evaluation ? (
             <>
+              {/* Sesli Rapor Player */}
+              <ReportAudioPlayer sessionId={id} />
+
               {/* Genel Puan Başlığı / Narrative Header */}
               <OverallScoreCard
                 overallScore={evaluation.overall_score}
@@ -72,7 +89,7 @@ export default async function SessionReportPage({ params }: ReportPageProps) {
                 <div className="mb-24">
                   <h3 className="font-label text-xs uppercase tracking-[0.2em] font-bold text-on-surface-variant mb-6">Competency Breakdown</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {(dimensionScores as any[]).map((d) => (
+                    {(dimensionScores as Array<{ dimension_code: string; score: number; evidence?: string[]; feedback?: string }>).map((d) => (
                       <DimensionScoreBar
                         key={d.dimension_code}
                         dimensionCode={d.dimension_code}
@@ -101,7 +118,7 @@ export default async function SessionReportPage({ params }: ReportPageProps) {
               </div>
               <h2 className="font-headline text-3xl italic mb-4">Değerlendirme Hazırlanıyor</h2>
               <p className="text-on-surface-variant leading-relaxed mb-8">
-                AI değerlendirme motoru seansınızı ICF rubric boyutlarına göre analiz ediyor. "No-Line" yapısına geçerken sabrınız için teşekkürler. Lütfen birkaç dakika bekleyin.
+                AI değerlendirme motoru seansınızı ICF rubric boyutlarına göre analiz ediyor. &ldquo;No-Line&rdquo; yapısına geçerken sabrınız için teşekkürler. Lütfen birkaç dakika bekleyin.
               </p>
               <Button asChild className="rounded-full bg-primary-container text-on-primary hover:bg-on-primary-container transition-colors px-8 py-6 h-auto">
                 <Link href={`/dashboard/sessions/${id}/report`} className="flex items-center gap-2">

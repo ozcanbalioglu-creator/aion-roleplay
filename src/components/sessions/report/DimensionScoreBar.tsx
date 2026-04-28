@@ -71,7 +71,7 @@ export function DimensionScoreBar({
               <div className="space-y-3">
                 {evidence.map((ev, i) => (
                   <div key={i} className="p-4 rounded-lg bg-surface-container-highest/30 border-l-2 border-on-surface-variant/30">
-                    <p className="text-on-background/70 leading-relaxed italic text-sm">"{ev}"</p>
+                    <p className="text-on-background/70 leading-relaxed italic text-sm">&ldquo;{ev}&rdquo;</p>
                   </div>
                 ))}
               </div>

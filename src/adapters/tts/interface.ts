@@ -1,5 +1,5 @@
 export interface TTSOptions {
-  voiceId: string
+  voiceId?: string
   speed?: number
   stability?: number
   similarityBoost?: number
@@ -12,6 +12,6 @@ export interface TTSResult {
 }
 
 export interface ITTSAdapter {
-  synthesize(text: string, options: TTSOptions): Promise<TTSResult>
-  stream(text: string, options: TTSOptions): AsyncGenerator<Buffer, void, unknown>
+  synthesize(text: string, options?: TTSOptions): Promise<TTSResult>
+  stream(text: string, options?: TTSOptions): AsyncGenerator<Buffer, void, unknown>
 }

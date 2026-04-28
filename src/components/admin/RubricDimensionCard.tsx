@@ -21,7 +21,7 @@ interface ScoreLabels {
 
 interface RubricDimension {
   id: string
-  code: string
+  dimension_code: string
   name: string
   description?: string
   is_active: boolean
@@ -57,7 +57,7 @@ export function RubricDimensionCard({ dimension }: RubricDimensionCardProps) {
         <div className="flex items-start justify-between">
           <div>
             <CardTitle className="text-sm">{dimension.name}</CardTitle>
-            <p className="mt-0.5 font-mono text-xs text-muted-foreground">{dimension.code}</p>
+            <p className="mt-0.5 font-mono text-xs text-muted-foreground">{dimension.dimension_code}</p>
           </div>
           <div className="flex items-center gap-2">
             <StatusBadge active={dimension.is_active} />

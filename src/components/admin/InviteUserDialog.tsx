@@ -20,6 +20,7 @@ import { SubmitButton } from '@/components/ui/SubmitButton'
 import { useServerAction } from '@/hooks/useServerAction'
 import { inviteUserAction } from '@/lib/actions/user.actions'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { toast } from '@/lib/toast'
 
 interface InviteUserDialogProps {
   open: boolean
@@ -29,96 +30,72 @@ interface InviteUserDialogProps {
 export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) {
   const formRef = useRef<HTMLFormElement>(null)
   const [error, setError] = useState<string | null>(null)
-  const [successData, setSuccessData] = useState<{ email: string; tempPassword: string } | null>(null)
 
   const { execute, isPending } = useServerAction(inviteUserAction, {
-    onSuccess: (result: any) => {
-      if (result?.tempPassword) {
-        setSuccessData({ email: result.email || '', tempPassword: result.tempPassword })
-      } else {
-        formRef.current?.reset()
-        setError(null)
-        onOpenChange(false)
-      }
+    onSuccess: () => {
+      formRef.current?.reset()
+      setError(null)
+      onOpenChange(false)
+      toast.success('Davet e-postası gönderildi.')
     },
     onError: (errorMessage) => {
       setError(errorMessage)
-      console.error('Kullanıcı davet hatası:', errorMessage)
-    }
+    },
   })
 
+  function handleOpenChange(next: boolean) {
+    if (!next) setError(null)
+    onOpenChange(next)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Kullanıcı Davet Et</DialogTitle>
+          <DialogTitle>Yeni Kullanıcı Davet Et</DialogTitle>
         </DialogHeader>
-        {successData ? (
-          <div className="space-y-4">
-            <Alert className="border-green-200 bg-green-50">
-              <AlertDescription className="text-green-800">
-                ✅ Kullanıcı başarıyla oluşturuldu!
-              </AlertDescription>
+
+        <form ref={formRef} action={(fd) => execute(fd)} className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
+          )}
 
-            <div className="space-y-2 p-3 bg-muted rounded-lg">
-              <p className="text-sm font-medium">E-posta:</p>
-              <p className="text-sm font-mono">{successData.email}</p>
-
-              <p className="text-sm font-medium mt-3">Geçici Şifre:</p>
-              <div className="flex gap-2 items-center">
-                <p className="text-sm font-mono flex-1 break-all">{successData.tempPassword}</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(successData.tempPassword)
-                  }}
-                  className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded hover:opacity-90"
-                >
-                  Kopyala
-                </button>
-              </div>
-
-              <p className="text-xs text-muted-foreground mt-3">
-                💡 Kullanıcıya bu bilgileri verin. İlk girişte şifrelerini değiştirebilecekler.
-              </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2 space-y-2">
+              <Label htmlFor="full_name">Ad Soyad *</Label>
+              <Input id="full_name" name="full_name" placeholder="Ahmet Yılmaz" required />
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setSuccessData(null)
-                formRef.current?.reset()
-                onOpenChange(false)
-              }}
-              className="w-full px-3 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
-            >
-              Kapat
-            </button>
-          </div>
-        ) : (
-          <form ref={formRef} action={(fd) => execute(fd)} className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
             <div className="space-y-2">
-              <Label htmlFor="full_name">Ad Soyad</Label>
-              <Input id="full_name" name="full_name" placeholder="Ad Soyad" required />
+              <Label htmlFor="username">Kullanıcı Adı</Label>
+              <Input id="username" name="username" placeholder="ahmet.yilmaz" />
+              <p className="text-xs text-muted-foreground">Küçük harf, rakam, nokta ve tire</p>
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="email">E-posta</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="ornek@sirket.com"
-                required
-              />
+              <Label htmlFor="email">E-posta *</Label>
+              <Input id="email" name="email" type="email" placeholder="ahmet@sirket.com" required />
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="role">Rol</Label>
+              <Label htmlFor="title">Ünvan</Label>
+              <Input id="title" name="title" placeholder="Kıdemli Uzman" />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="position">Görevi</Label>
+              <Input id="position" name="position" placeholder="Satış Temsilcisi" />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="department">Görev Alanı</Label>
+              <Input id="department" name="department" placeholder="Satış" />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="role">Rol *</Label>
               <Select name="role" defaultValue="user">
                 <SelectTrigger>
                   <SelectValue placeholder="Rol seçin" />
@@ -126,16 +103,22 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
                 <SelectContent>
                   <SelectItem value="tenant_admin">Kurum Admin</SelectItem>
                   <SelectItem value="hr_admin">İK Admin</SelectItem>
+                  <SelectItem value="hr_viewer">İK Görüntüleyici</SelectItem>
                   <SelectItem value="manager">Yönetici</SelectItem>
                   <SelectItem value="user">Kullanıcı</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <SubmitButton disabled={isPending}>Davet Gönder</SubmitButton>
-            </div>
-          </form>
-        )}
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Kullanıcıya e-posta ile davet linki gönderilir. Linke tıklayarak hesabını etkinleştirebilir.
+          </p>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <SubmitButton disabled={isPending}>Davet Gönder</SubmitButton>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   )

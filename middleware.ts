@@ -9,9 +9,16 @@ const PUBLIC_ROUTES = [
 
 const CONSENT_ROUTE = '/consent'
 
-const ADMIN_ONLY_ROUTES = ['/admin/tenants', '/admin/personas', '/admin/prompts', '/admin/system']
+// Sadece super_admin
+const SUPER_ADMIN_ROUTES = ['/admin/tenants', '/admin/personas', '/admin/prompts', '/admin/system', '/admin/rubrics']
+// super_admin veya tenant_admin
+const ADMIN_ROUTES = ['/admin', '/tenant']
+// Manager ve üstü
 const MANAGER_ROUTES = ['/manager']
-const ADMIN_ROUTES = ['/admin']
+
+const ROLE_PROTECTED_ROUTES: Record<string, string[]> = {
+  '/reports': ['manager', 'hr_viewer', 'tenant_admin', 'super_admin'],
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -47,13 +54,17 @@ export async function middleware(request: NextRequest) {
   }
 
   // Role-based coarse protection
-  if (ADMIN_ONLY_ROUTES.some(r => pathname.startsWith(r))) {
+  if (SUPER_ADMIN_ROUTES.some(r => pathname.startsWith(r))) {
     if (role !== 'super_admin') {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }
 
-  if (ADMIN_ROUTES.some(r => pathname.startsWith(r))) {
+  if (pathname.startsWith('/tenant/users')) {
+    if (!role || !['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(role)) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  } else if (ADMIN_ROUTES.some(r => pathname.startsWith(r))) {
     if (!role || !['super_admin', 'tenant_admin'].includes(role)) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
@@ -61,6 +72,12 @@ export async function middleware(request: NextRequest) {
 
   if (MANAGER_ROUTES.some(r => pathname.startsWith(r))) {
     if (!role || !['super_admin', 'tenant_admin', 'hr_admin', 'manager'].includes(role)) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  }
+
+  for (const [route, allowedRoles] of Object.entries(ROLE_PROTECTED_ROUTES)) {
+    if (pathname.startsWith(route) && (!role || !allowedRoles.includes(role))) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }

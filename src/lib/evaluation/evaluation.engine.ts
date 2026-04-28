@@ -3,6 +3,7 @@ import { OpenAI } from 'openai'
 import { buildEvaluationPrompt } from './evaluation-prompt.builder'
 import { getDecryptedTranscript } from './transcript.service'
 import { encrypt } from '@/lib/encryption'
+import { createNotification } from '@/lib/notifications/notification.service'
 
 interface EvaluationResult {
   evaluationId: string
@@ -107,7 +108,8 @@ export async function runEvaluation(sessionId: string): Promise<EvaluationResult
   if (evalError || !evaluation) throw new Error(`Değerlendirme kaydedilemedi: ${evalError?.message}`)
 
   // Dimension scores yaz
-  const dimensionInserts = (parsed.dimensions ?? []).map((d: any) => ({
+  type ParsedDimension = { dimension_code: string; score: number; evidence: string[]; feedback: string }
+  const dimensionInserts = (parsed.dimensions ?? []).map((d: ParsedDimension) => ({
     evaluation_id: evaluation.id,
     session_id: sessionId,
     tenant_id: session.tenant_id,
@@ -145,11 +147,18 @@ export async function runEvaluation(sessionId: string): Promise<EvaluationResult
     session_id: sessionId,
     tenant_id: session.tenant_id,
     user_id: session.user_id,
-    prompt_type: 'evaluation',
+    prompt_type: 'evaluation_scoring',
     encrypted_content: encrypt(promptData.userPrompt),
     model: process.env.OPENAI_LLM_MODEL ?? 'gpt-4.5',
     provider: 'openai',
   })
+
+  // Bildirim: değerlendirme tamamlandı (fire-and-forget)
+  const appUrl = process.env.QSTASH_RECEIVER_URL ?? ''
+  createNotification(session.user_id, session.tenant_id, 'evaluation_completed', {
+    sessionId,
+    reportUrl: `${appUrl}/dashboard/sessions/${sessionId}/report`,
+  }).catch((e) => console.error('[eval] Bildirim gönderilemedi:', e))
 
   return {
     evaluationId: evaluation.id,

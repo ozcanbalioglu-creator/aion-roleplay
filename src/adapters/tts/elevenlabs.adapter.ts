@@ -8,7 +8,7 @@ export class ElevenLabsTTSAdapter implements ITTSAdapter {
     this.client = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY })
   }
 
-  async synthesize(text: string, options: TTSOptions): Promise<TTSResult> {
+  async synthesize(text: string, options: TTSOptions = {}): Promise<TTSResult> {
     const start = Date.now()
     const voiceId = options.voiceId || process.env.ELEVENLABS_DEFAULT_VOICE_ID || ''
 
@@ -34,7 +34,7 @@ export class ElevenLabsTTSAdapter implements ITTSAdapter {
     }
   }
 
-  async *stream(text: string, options: TTSOptions): AsyncGenerator<Buffer, void, unknown> {
+  async *stream(text: string, options: TTSOptions = {}): AsyncGenerator<Buffer, void, unknown> {
     const voiceId = options.voiceId || process.env.ELEVENLABS_DEFAULT_VOICE_ID || ''
 
     const audioStream = await this.client.textToSpeech.streamWithTimestamps(voiceId, {

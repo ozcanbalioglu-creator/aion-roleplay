@@ -48,3 +48,34 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i))
   }
 }
+
+// Server tarafında strip yapsak da chunk boundary'lerinde marker bölünebiliyor.
+// Client tarafında speak/display öncesi defansif son temizlik.
+const PHASE_BRACKET = /\[\s*PHASE\s*:?\s*[a-zA-Z_]+\s*\]/gi
+const PHASE_NAKED = /\b(?:phase|faz)\s*[:\-]?\s*(?:opening|exploration|deepening|action|closing|a[çc][ıi]l[ıi][şs]|ke[şs]if|derinle[şs]me|aksiyon|kapan[ıi][şs])\b\.?/gi
+const SESSION_END_BRACKET = /\[\s*SESSION[\s_-]?END\s*\]/gi
+const SESSION_END_NAKED = /\bSESSION[\s_-]?END\b/gi
+
+export function sanitizeForTTS(text: string): string {
+  return text
+    .replace(PHASE_BRACKET, '')
+    .replace(PHASE_NAKED, '')
+    .replace(SESSION_END_BRACKET, '')
+    .replace(SESSION_END_NAKED, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Blob MIME type'ından Whisper-uyumlu dosya adı türetir.
+ * Whisper, formatı dosya adı uzantısından çıkarır.
+ */
+export function blobToWhisperFilename(blob: Blob): string {
+  const mime = blob.type.toLowerCase()
+  if (mime.includes('webm')) return 'recording.webm'
+  if (mime.includes('mp4') || mime.includes('m4a') || mime.includes('aac')) return 'recording.mp4'
+  if (mime.includes('mpeg') || mime.includes('mp3')) return 'recording.mp3'
+  if (mime.includes('ogg')) return 'recording.ogg'
+  if (mime.includes('wav')) return 'recording.wav'
+  return 'recording.webm'  // sensible default
+}

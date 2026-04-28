@@ -25,6 +25,7 @@
   --color-on-background: var(--on-background);
   
   --color-primary: var(--primary);
+  --color-primary-foreground: var(--on-primary);
   --color-on-primary: var(--on-primary);
   --color-primary-container: var(--primary-container);
   --color-on-primary-container: var(--on-primary-container);
@@ -93,9 +94,10 @@
   --on-surface-variant: #47464c;
   --on-background: #1a1a2e;
 
-  /* Primary Deep Indigo */
-  --primary: #020007;
-  --on-primary: #ffffff;
+  /* Primary Deep Purple */
+  --primary: #2a0056;
+  --on-primary: #fdf8ff;
+  --primary-foreground: #fdf8ff;
   --primary-container: #2a0056;
   --on-primary-container: #9d6bdf;
 
@@ -163,6 +165,7 @@
 
   --primary: #d8b9ff;
   --on-primary: #3d007c;
+  --primary-foreground: #3d007c;
   --primary-container: #5500aa;
   --on-primary-container: #eedcff;
 

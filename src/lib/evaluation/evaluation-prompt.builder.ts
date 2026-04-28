@@ -26,27 +26,37 @@ export async function buildEvaluationPrompt(
 ): Promise<EvaluationPromptData> {
   const supabase = await createServiceRoleClient()
 
-  // Aktif rubric boyutlarını getir
-  const { data: rubricData, error } = await supabase
-    .from('rubric_templates')
-    .select(`
-      id, name,
-      rubric_dimensions(
-        dimension_code, dimension_name, description, is_required,
-        level_1_desc, level_3_desc, level_5_desc
-      )
-    `)
-    .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
-    .eq('is_active', true)
-    .order('created_at', { ascending: false })
-    .limit(1)
+  // Tenant'ın atanmış template'ini kontrol et
+  const { data: tenantRow } = await supabase
+    .from('tenants')
+    .select('rubric_template_id')
+    .eq('id', tenantId)
     .single()
 
-  if (error || !(rubricData as any)?.rubric_dimensions?.length) {
+  const templateFilter = tenantRow?.rubric_template_id
+    ? supabase
+        .from('rubric_templates')
+        .select(`id, name, rubric_dimensions(dimension_code, dimension_name, description, is_required, level_1_desc, level_3_desc, level_5_desc)`)
+        .eq('id', tenantRow.rubric_template_id)
+        .eq('is_active', true)
+        .single()
+    : supabase
+        .from('rubric_templates')
+        .select(`id, name, rubric_dimensions(dimension_code, dimension_name, description, is_required, level_1_desc, level_3_desc, level_5_desc)`)
+        .eq('is_default', true)
+        .eq('is_active', true)
+        .single()
+
+  const { data: rubricData, error } = await templateFilter
+
+  type RubricRow = { rubric_dimensions: { dimension_code: string; dimension_name: string; description: string; is_required: boolean; level_1_desc: string | null; level_3_desc: string | null; level_5_desc: string | null }[] }
+  const typed = rubricData as RubricRow | null
+
+  if (error || !typed?.rubric_dimensions?.length) {
     throw new Error('Aktif rubric bulunamadı')
   }
 
-  const dimensions: RubricDimensionForEval[] = (rubricData as any).rubric_dimensions.map((d: any) => ({
+  const dimensions: RubricDimensionForEval[] = typed.rubric_dimensions.map((d) => ({
     dimensionCode: d.dimension_code,
     dimensionName: d.dimension_name,
     description: d.description,

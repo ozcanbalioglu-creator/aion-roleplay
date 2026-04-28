@@ -30,7 +30,7 @@ type RelatedOrNull<T> = T | T[] | null | undefined
 
 interface Session {
   id: string
-  status: 'pending' | 'active' | 'completed' | 'cancelled' | 'dropped' | 'failed'
+  status: 'pending' | 'active' | 'debrief_active' | 'debrief_completed' | 'completed' | 'evaluation_failed' | 'cancelled' | 'dropped' | 'failed'
   started_at: string | null
   completed_at: string | null
   duration_seconds: number | null
@@ -54,7 +54,8 @@ function first<T>(val: RelatedOrNull<T>): T | null {
 }
 
 
-const DIFFICULTY_LABELS = ['', 'Başlangıç', 'Temel', 'Orta', 'İleri', 'Uzman']
+// Index 0 unused (difficulty_level 1-5). Fallback: invalid değer için "Belirsiz".
+const DIFFICULTY_LABELS = ['Belirsiz', 'Başlangıç', 'Temel', 'Orta', 'İleri', 'Uzman']
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null) return '-'
@@ -117,8 +118,11 @@ export function SessionList({ sessions }: SessionListProps) {
                   <div className="space-y-0.5">
                     <p className="text-sm">{scenario?.title ?? '-'}</p>
                     {scenario && (
-                      <Badge variant="outline" className="text-xs">
-                        {DIFFICULTY_LABELS[scenario.difficulty_level] ?? 'Belirsiz'}
+                      <Badge
+                        variant="outline"
+                        className="text-xs border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-500/30 dark:bg-slate-500/10 dark:text-slate-300"
+                      >
+                        {DIFFICULTY_LABELS[scenario.difficulty_level] || 'Belirsiz'}
                       </Badge>
                     )}
                   </div>

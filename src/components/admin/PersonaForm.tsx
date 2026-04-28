@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { toast } from 'sonner'
-import { Plus, Trash2, User, Brain, BarChart2, Lightbulb, Settings } from 'lucide-react'
+import { Plus, Trash2, X, User, Brain, BarChart2, Settings, Volume2 } from 'lucide-react'
 import { createPersonaAction, updatePersonaAction } from '@/lib/actions/persona.actions'
 import { cn } from '@/lib/utils'
 import { PersonaImageUpload } from './PersonaImageUpload'
@@ -46,9 +46,15 @@ const KPI_TEMPLATES = [
 export function PersonaForm({ initialData }: PersonaFormProps) {
   const router = useRouter()
   const [kpis, setKpis] = useState<PersonaKPI[]>(initialData?.kpis || [])
-  const [personaType, setPersonaType] = useState(initialData?.personality_type || 'new_to_role')
+  const [personaType, setPersonaType] = useState((initialData as any)?.growth_type || 'new_to_role')
   const [difficulty, setDifficulty] = useState(initialData?.difficulty?.toString() || '3')
+  const [resistanceLevel, setResistanceLevel] = useState(initialData?.resistance_level?.toString() || '3')
+  const [cooperativeness, setCooperativeness] = useState(initialData?.cooperativeness?.toString() || '3')
   const [avatarUrl, setAvatarUrl] = useState(initialData?.avatar_image_url || '')
+  const [triggerBehaviors, setTriggerBehaviors] = useState<string[]>(
+    Array.isArray(initialData?.trigger_behaviors) ? initialData.trigger_behaviors : []
+  )
+  const [triggerInput, setTriggerInput] = useState('')
 
   const addKPI = () => {
     setKpis([...kpis, { code: 'ozel_kpi', name: '', value: 100, is_custom: true }])
@@ -68,8 +74,11 @@ export function PersonaForm({ initialData }: PersonaFormProps) {
 
   async function handleSubmit(formData: FormData) {
     formData.append('kpis', JSON.stringify(kpis))
-    formData.append('personality_type', personaType)
+    formData.append('trigger_behaviors', JSON.stringify(triggerBehaviors))
+    formData.append('growth_type', personaType)
     formData.append('difficulty', difficulty)
+    formData.append('resistance_level', resistanceLevel)
+    formData.append('cooperativeness', cooperativeness)
     formData.append('avatar_image_url', avatarUrl)
 
     const res = initialData 
@@ -119,14 +128,10 @@ export function PersonaForm({ initialData }: PersonaFormProps) {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="name">Persona Adı</Label>
-                  <Input id="name" name="name" defaultValue={initialData?.name} className={identityInputClassName} placeholder="Örn: Anya" required style={{ backgroundColor: '#f5f2ff', color: '#47464c' }} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="surname">Persona Soyadı</Label>
-                  <Input id="surname" name="surname" defaultValue={initialData?.surname} className={identityInputClassName} placeholder="Örn: Petrov" style={{ backgroundColor: '#f5f2ff', color: '#47464c' }} />
+                  <Input id="name" name="name" defaultValue={initialData?.name} className={identityInputClassName} placeholder="Örn: Murat Kaya" required style={{ backgroundColor: '#f5f2ff', color: '#47464c' }} />
                 </div>
               </div>
 
@@ -159,7 +164,7 @@ export function PersonaForm({ initialData }: PersonaFormProps) {
                 </div>
                 <div>
                   <CardTitle>Bağlam ve Hikaye</CardTitle>
-                  <CardDescription>AI'nın rolünü oynaması için gereken senaryoyu ve koçluk hedeflerini belirtin.</CardDescription>
+                  <CardDescription>AI&apos;nın rolünü oynaması için gereken senaryoyu ve koçluk hedeflerini belirtin.</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -177,6 +182,63 @@ export function PersonaForm({ initialData }: PersonaFormProps) {
               <div className="space-y-2">
                 <Label htmlFor="coaching_tips">Koçluk İpuçları</Label>
                 <Textarea id="coaching_tips" name="coaching_tips" defaultValue={initialData?.coaching_tips?.[0] || ''} placeholder="Koç bu seansda nelere odaklanmalı?" className="min-h-[100px] bg-surface-container-low border-border/40" />
+              </div>
+
+              <div className="space-y-3">
+                <Label>Tetikleyici Davranışlar</Label>
+                <p className="text-[11px] text-muted-foreground -mt-1">Koçun hangi davranışları personayı tetikler? AI bu liste ile uyarılır.</p>
+                <div className="flex gap-2">
+                  <Input
+                    value={triggerInput}
+                    onChange={e => setTriggerInput(e.target.value)}
+                    onKeyDown={e => {
+                      if ((e.key === 'Enter' || e.key === ',') && triggerInput.trim()) {
+                        e.preventDefault()
+                        const val = triggerInput.trim().replace(/,$/, '')
+                        if (val && !triggerBehaviors.includes(val)) {
+                          setTriggerBehaviors(prev => [...prev, val])
+                        }
+                        setTriggerInput('')
+                      }
+                    }}
+                    placeholder="Örn: Söz kesmek, Eleştirmek… Enter ile ekle"
+                    className="bg-surface-container-low border-border/40 h-10 flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-10 px-3"
+                    onClick={() => {
+                      const val = triggerInput.trim().replace(/,$/, '')
+                      if (val && !triggerBehaviors.includes(val)) {
+                        setTriggerBehaviors(prev => [...prev, val])
+                      }
+                      setTriggerInput('')
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                {triggerBehaviors.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {triggerBehaviors.map((t, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center gap-1 rounded-full bg-violet-100 text-violet-700 text-xs font-medium px-3 py-1"
+                      >
+                        {t}
+                        <button
+                          type="button"
+                          onClick={() => setTriggerBehaviors(prev => prev.filter((_, idx) => idx !== i))}
+                          className="ml-0.5 hover:text-violet-900 transition-colors"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -240,7 +302,7 @@ export function PersonaForm({ initialData }: PersonaFormProps) {
                         onClick={() => setDifficulty(v.toString())}
                         className={cn(
                           "h-10 rounded-lg text-xs font-bold transition-all border border-border/10",
-                          difficulty === v.toString() 
+                          difficulty === v.toString()
                             ? "bg-on-primary-container text-surface shadow-lg"
                             : "bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high"
                         )}
@@ -249,6 +311,84 @@ export function PersonaForm({ initialData }: PersonaFormProps) {
                       </button>
                     ))}
                 </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <Label>Direnç Seviyesi</Label>
+                  <span className="text-sm font-bold text-on-primary-container">{resistanceLevel} / 5</span>
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {[1, 2, 3, 4, 5].map(v => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setResistanceLevel(v.toString())}
+                      className={cn(
+                        "h-10 rounded-lg text-xs font-bold transition-all border border-border/10",
+                        resistanceLevel === v.toString()
+                          ? "bg-on-primary-container text-surface shadow-lg"
+                          : "bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high"
+                      )}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <Label>İşbirliği Seviyesi</Label>
+                  <span className="text-sm font-bold text-on-primary-container">{cooperativeness} / 5</span>
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {[1, 2, 3, 4, 5].map(v => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setCooperativeness(v.toString())}
+                      className={cn(
+                        "h-10 rounded-lg text-xs font-bold transition-all border border-border/10",
+                        cooperativeness === v.toString()
+                          ? "bg-on-primary-container text-surface shadow-lg"
+                          : "bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high"
+                      )}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card/60 backdrop-blur-xl border-border/40 shadow-2xl">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 rounded-lg">
+                  <Volume2 className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <CardTitle>Ses Ayarı</CardTitle>
+                  <CardDescription>Personanın seans sırasında konuşacağı ElevenLabs sesi.</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="voice_id">ElevenLabs Voice ID</Label>
+                <Input
+                  id="voice_id"
+                  name="voice_id"
+                  defaultValue={initialData?.voice_id ?? ''}
+                  className="bg-surface-container-low border-border/40 h-11 font-mono text-xs"
+                  placeholder="Örn: 21m00Tcm4TlvDq8ikWAM"
+                  autoComplete="off"
+                />
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  ElevenLabs hesabınızdaki <span className="font-medium">Voice Library</span>&apos;den voice ID&apos;yi kopyalayın. Boş bırakılırsa <code className="text-[10px] bg-surface-container-high px-1 py-0.5 rounded">ELEVENLABS_DEFAULT_VOICE_ID</code> kullanılır. Cinsiyet/karakter persona ile uyumlu seçilmelidir.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -261,7 +401,7 @@ export function PersonaForm({ initialData }: PersonaFormProps) {
                     <BarChart2 className="h-5 w-5 text-amber-600" />
                   </div>
                   <div>
-                    <CardTitle>Performans KPI'ları</CardTitle>
+                    <CardTitle>Performans KPI&apos;ları</CardTitle>
                   </div>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={addKPI} className="rounded-full h-8">

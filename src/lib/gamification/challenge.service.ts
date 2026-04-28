@@ -6,7 +6,9 @@ interface UpdateChallengeParams {
   sessionId: string
   overallScore: number
   personaId: string
-  isNewPersona: boolean // user_persona_stats VIEW'dan: bu persona ile ilk seans mı?
+  scenarioId: string
+  isNewPersona: boolean
+  isNewScenario: boolean
 }
 
 export async function updateChallengeProgress(params: UpdateChallengeParams): Promise<string[]> {
@@ -50,6 +52,13 @@ export async function updateChallengeProgress(params: UpdateChallengeParams): Pr
 
       case 'try_persona':
         if (params.isNewPersona) {
+          newProgress = uc.target_value
+          shouldComplete = true
+        }
+        break
+
+      case 'try_scenario':
+        if (params.isNewScenario) {
           newProgress = uc.target_value
           shouldComplete = true
         }

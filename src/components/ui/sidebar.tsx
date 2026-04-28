@@ -27,8 +27,10 @@ import {
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-const SIDEBAR_WIDTH = "16rem"
-const SIDEBAR_WIDTH_MOBILE = "18rem"
+// Sidebar width — yapısal sadeleştirme sonrası gap kaynağı eliminé olduğu için
+// "absorb için geniş" mecburiyeti kalmadı; menü etiketleri rahatça sığacak şekilde dengelendi.
+const SIDEBAR_WIDTH = "17rem"         // 22rem → 17rem (kullanıcı: "biraz daralt")
+const SIDEBAR_WIDTH_MOBILE = "20rem"  // mobile drawer
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
@@ -147,7 +149,11 @@ const SidebarProvider = React.forwardRef<
               } as React.CSSProperties
             }
             className={cn(
-              "group/sidebar-wrapper flex min-h-svh w-full has-[[data-variant=inset]]:bg-sidebar",
+              // bg-sidebar (dark): defense-in-depth — peer-div'in transparent spacer alanı, AppHeader
+              // bg-surface/80'in transparency'sinden sızan light renkleri ya da SidebarInset'in
+              // bg-background fazlalığı buradan light gözükmesin diye wrapper'ı koyu yapıyoruz.
+              // Sidebar fixed visual zaten bu bg üstünde aynı renkte → seamless.
+              "group/sidebar-wrapper flex min-h-svh w-full bg-sidebar",
               className
             )}
             ref={ref}
@@ -222,48 +228,39 @@ const Sidebar = React.forwardRef<
       )
     }
 
+    // ❗ SADELEŞTİRİLDİ (2026-04-27): Eski yapı 3 katlı iç içeydi (outer peer-div + inner spacer
+    // + inner fixed div + bg-sidebar wrapper). Bu nested yapı flex layout'a tutarsızlık katıyor,
+    // her renderde küçük gap'ler/leak'ler oluşturuyordu. Tek bir <aside> elementine indirgendi:
+    //   - flex-shrink-0 + w-[--sidebar-width]: flex flow'da explicit width
+    //   - sticky top-0 h-svh: scroll sırasında üstte sabit kalır (eski "fixed" davranışı)
+    //   - bg-sidebar: doğrudan element üzerinde (extra wrapper yok)
+    //   - peer + group sınıfları: SidebarInset'in peer-data-* ve children'ın group-data-* selector'ları için
     return (
-      <div
+      <aside
         ref={ref}
-        className="group peer hidden text-sidebar-foreground md:block"
         data-state={state}
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
+        data-sidebar="sidebar"
+        className={cn(
+          "group peer hidden md:flex md:flex-col md:flex-shrink-0",
+          "bg-sidebar text-sidebar-foreground",
+          "md:sticky md:top-0 md:h-svh md:z-10",
+          "md:transition-[width] md:duration-200 md:ease-linear",
+          "md:w-[var(--sidebar-width)]",
+          "group-data-[collapsible=offcanvas]:md:w-0 group-data-[collapsible=offcanvas]:md:overflow-hidden",
+          variant === "floating" || variant === "inset"
+            ? "group-data-[collapsible=icon]:md:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))] md:p-2"
+            : "group-data-[collapsible=icon]:md:w-[--sidebar-width-icon]",
+          variant === "floating" &&
+            "md:rounded-lg md:border md:border-sidebar-border md:shadow",
+          className
+        )}
+        {...props}
       >
-        {/* This is what handles the sidebar gap on desktop */}
-        <div
-          className={cn(
-            "relative w-[--sidebar-width] bg-transparent transition-[width] duration-200 ease-linear",
-            "group-data-[collapsible=offcanvas]:w-0",
-            "group-data-[side=right]:rotate-180",
-            variant === "floating" || variant === "inset"
-              ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]"
-              : "group-data-[collapsible=icon]:w-[--sidebar-width-icon]"
-          )}
-        />
-        <div
-          className={cn(
-            "fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-200 ease-linear md:flex",
-            side === "left"
-              ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
-              : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
-            // Adjust the padding for floating and inset variants.
-            variant === "floating" || variant === "inset"
-              ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
-              : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
-            className
-          )}
-          {...props}
-        >
-          <div
-            data-sidebar="sidebar"
-            className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
-          >
-            {children}
-          </div>
-        </div>
-      </div>
+        {children}
+      </aside>
     )
   }
 )
@@ -333,8 +330,12 @@ const SidebarInset = React.forwardRef<
       ref={ref}
       className={cn(
         "relative flex w-full flex-1 flex-col bg-background transition-[margin] duration-200 ease-linear",
-        "md:peer-data-[state=expanded]:ml-[var(--sidebar-width)] md:peer-data-[state=collapsed]:ml-[var(--sidebar-width-icon)]",
-        "md:peer-data-[variant=inset]:m-2 md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
+        // peer-div ARTIK kendi explicit width'ini taşıyor (md:w-[--sidebar-width]).
+        // SidebarInset'e ml/pl GEREKMİYOR — flex-1 ile peer-div'den sonraki space'i alır,
+        // gap (ml ile BG dışı transparent alan) ya da overlap (peer çöküp content sidebar altına
+        // geçmesi) ihtimali kalmadı.
+        // Inset variant kendi paddingi/marginiyle çalışır.
+        "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
         className
       )}
       {...props}

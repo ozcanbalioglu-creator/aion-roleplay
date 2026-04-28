@@ -2,7 +2,7 @@
 // Auth & User Types
 // ===========================
 
-export type UserRole = 'user' | 'manager' | 'hr_admin' | 'tenant_admin' | 'super_admin'
+export type UserRole = 'user' | 'manager' | 'hr_admin' | 'hr_viewer' | 'tenant_admin' | 'super_admin'
 
 export interface AppUser {
   id: string
@@ -12,8 +12,21 @@ export interface AppUser {
   email: string
   avatar_url?: string | null
   is_active: boolean
+  title?: string | null
+  position?: string | null
+  department?: string | null
+  username?: string | null
+  manager_id?: string | null
   created_at: string
   updated_at?: string
+}
+
+export interface TenantContextProfile {
+  company_description?: string
+  industry?: string
+  product_summary?: string
+  company_size?: string
+  culture_notes?: string
 }
 
 export interface Tenant {
@@ -21,9 +34,16 @@ export interface Tenant {
   name: string
   slug: string
   logo_url?: string | null
+  website_url?: string | null
+  brand_color?: string | null
+  settings?: Record<string, unknown>
+  context_profile?: TenantContextProfile | null
   is_active: boolean
+  rubric_template_id?: string | null
+  rubric_template_name?: string | null
   created_at: string
   updated_at?: string
+  admin_user?: Pick<AppUser, 'id' | 'full_name' | 'email' | 'position'> | null
 }
 
 // ===========================
@@ -48,28 +68,37 @@ export interface LLMUsage {
 export interface Persona {
   id: string
   name: string
-  surname: string | null
   title: string
   department: string | null
-  location: string | null
-  experience_years: number | null
-  personality_type: string // Used for 'rising_performance', etc.
+  location?: string | null
+  experience_years?: number | null
+  personality_type: string
+  growth_type?: string | null
   emotional_baseline: string
-  difficulty: number
+  difficulty?: number | null
   resistance_level: number
-  cooperativeness: number
+  cooperativeness?: number | null
+  trigger_behaviors?: string[]
+  voice_id?: string | null
   is_active: boolean
-  scenario_description: string | null
-  coaching_context: string | null
-  coaching_tips: string[]
-  avatar_image_url: string | null
-  tenant_id: string | null
-  created_at: string
+  scenario_description?: string | null
+  coaching_context?: string | null
+  coaching_tips?: string[] | string | null
+  avatar_image_url?: string | null
+  tenant_id?: string | null
+  created_at?: string
   kpis?: Array<{
     code: string
     name: string
     value: number
     is_custom: boolean
+  }>
+  persona_kpis?: Array<{
+    kpi_code: string
+    kpi_name: string
+    value: number
+    unit?: string | null
+    is_custom?: boolean
   }>
   system_prompt?: string
 }
@@ -78,10 +107,15 @@ export interface Scenario {
   id: string
   title: string
   description: string
+  persona_id?: string
   difficulty_level: number // 1-5
   estimated_duration_min: number
   target_skills: string[]
   context_setup: string
+  /** Kullanıcıya gösterilen, üçüncü şahıs ruh hali ipucu (AI talimatı değil) */
+  mood_hint?: string | null
+  /** Personanın bu senaryodaki rolü ve sorumlulukları (LLM context) */
+  role_context?: string | null
   is_active: boolean
 }
 
@@ -166,4 +200,20 @@ export interface ScenarioSummary {
   estimated_duration_min: number
   target_skills: string[]
   context_setup: string
+}
+
+export interface UserWithManager extends AppUser {
+  manager_name?: string | null
+  manager_email?: string | null
+}
+
+export interface PersonaTenantMapping {
+  id: string
+  persona_id: string
+  tenant_id: string
+  assigned_at: string
+  assigned_by: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
 }

@@ -53,15 +53,18 @@ export async function getActiveSessionData(sessionId: string) {
     .from('sessions')
     .select(`
       id, status, phase, session_mode, started_at, completed_at, cancelled_at, created_at,
-      personas(id, name, title, personality_type, resistance_level),
-      scenarios(id, title, difficulty_level, estimated_duration_min, target_skills),
+      personas(id, name, title, department, experience_years, growth_type, personality_type, resistance_level, cooperativeness, difficulty, avatar_image_url, coaching_tips, coaching_context, trigger_behaviors, emotional_baseline),
+      scenarios(id, title, difficulty_level, estimated_duration_min, target_skills, context_setup),
       evaluations(id, overall_score)
     `)
     .eq('id', sessionId)
     .eq('user_id', currentUser.id)
     .single()
 
-  if (error || !data) return null
+  if (error || !data) {
+    console.error('[getActiveSessionData] query failed | sessionId:', sessionId, '| userId:', currentUser.id, '| errCode:', error?.code, '| errMsg:', error?.message, '| hint:', error?.hint, '| details:', error?.details)
+    return null
+  }
   return data
 }
 
