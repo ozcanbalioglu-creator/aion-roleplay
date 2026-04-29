@@ -1,10 +1,12 @@
-# Canlı Yayına Çıkış Planı — 1 Mayıs 2026 Hedefi
+# Canlı Yayına Çıkış Planı — 1 Mayıs Staging + 4 Mayıs Production
 
 **Oluşturulma:** 2026-04-25
-**Son güncelleme:** 2026-04-26 (sesli seans katmanı stabilize edildi, role-inversion fix uygulandı)
-**Hedef tarih:** 2026-05-01 (test kullanıcılarıyla canlı simülasyon)
-**Toplam süre:** 6 iş günü
-**Mevcut durum:** Yeşil — bloker yok, voice akışı uçtan uca çalışıyor
+**Son güncelleme:** 2026-04-29 akşam (evaluation onarımı + rapor redesign + landing page brifi)
+**Hedef tarihler:**
+- **2026-05-01 (Cuma):** Staging soft launch — 1-2 gerçek kullanıcı ile pilot test
+- **2026-05-04 (Pazartesi):** Production deploy
+
+**Mevcut durum:** Yeşil — voice akışı uçtan uca çalışıyor, evaluation pipeline onarıldı (29 Nisan), rapor redesign onay aşamasında.
 
 ---
 
@@ -199,30 +201,68 @@ Aşağıdaki kararlar 2026-04-25 tarihli oturumda kesinleşti. **Bunları yenide
 - Kontrol listesi sabit mi dinamik mi
 - Faz planı (1=schema/prompt, 2=UI render, 3=fix Issue B+C, 4=trend)
 
-### Gün 6 — 30 Nisan (Production Hazırlığı + Rapor Redesign Faz 1-2)
+### Gün 6 — 30 Nisan (Rapor Redesign + Landing Page + Staging Hazırlığı)
 
-> **Yeni plan:** Önce rapor redesign Faz 1 (schema migration + LLM prompt) + Faz 2 (UI render) yapılacak.
-> Sonra production deployment hazırlığı.
+> **Yeni plan (29 Nisan kararı):** Production 4 Mayıs Pazartesi'ye kaydı.
+> 1 Mayıs **staging soft launch** — 1-2 gerçek kullanıcı ile pilot test.
+> 30 Nisan rapor kalitesi + landing page'e odaklan.
 
-#### Rapor Redesign (önce)
-- [ ] Karar listesi onaylanır (sabah ilk iş)
-- [ ] Faz 1: Migration 049 (`rubric_dimensions.pillar_code` kolonu + ICF backfill) + LLM prompt yeniden yazımı
-- [ ] Faz 2: Rapor sayfası 5 katmanlı yapıya geçiş
-- [ ] Faz 3: Issue B (SessionList rapor linki) + Issue C (achievements diagnose+fix)
+#### Rapor Redesign (öncelik 1)
+- [ ] `docs/RAPOR_REDESIGN_TASLAK.md` karar listesi (§7) onaylanır (sabah ilk iş)
+- [ ] Faz 1: Migration 049 (`rubric_dimensions.pillar_code` kolonu + ICF backfill) + LLM prompt yeniden yazımı (DO/DON'T DO + transcript zorunlu)
+- [ ] Faz 2: Rapor sayfası 5 katmanlı yapıya geçiş (Hero / Pillar mini / Drill-down / Aksiyon paneli / Yansıma)
 
-#### Production DB Hazırlığı
-- [ ] Production DB'yi sıfırla:
-  - Supabase Dashboard → Aion_Mirror → SQL Editor
-  - **Tüm tabloları drop** (veya yeni proje aç, daha temiz)
+#### Yan Fix'ler (öncelik 2)
+- [ ] Migration 048 Supabase SQL Editor'da çalıştır (notifications.payload + enum)
+- [ ] Issue B: SessionList rapor linki (`debrief_completed` ve `evaluation_failed` durumlarını ekle)
+- [ ] Issue C: Achievements boş — `gamification_profiles` row'u oluşmuyor; signup trigger veya upsert fix
+
+#### Landing Page (öncelik 3)
+- [ ] `docs/landing_page.md` brifi onaylanır (§20 karar listesi)
+- [ ] Claude DESIGN feature'ına brif iletilir, görsel mockup üretilir
+- [ ] Frontend Developer agent uygular → `/` route'una landing page yerleştirilir
+- [ ] Mevcut `/` → `/login` redirect kaldırılır; landing page default olur
+- [ ] `/login` butonu landing'de görünür kılınır
+
+#### Staging Hazırlığı
+- [ ] Staging Vercel deployment env'leri kontrol et (her şey mevcut, sadece doğrulama)
+- [ ] Custom domain bağlanması düşünülecek mi? (örn. `staging.mirror.aionmore.com`) — opsiyonel
+
+### Gün 7 — 1 Mayıs (Staging Soft Launch — 1-2 Kullanıcı Pilot)
+
+- [ ] Sabah son smoke test (Özcan kendi hesabıyla):
+  - Yeni kayıt → davet → OTP login
+  - Voice seans → debrief → rapor (yeni 5 katmanlı yapı)
+  - Bulk upload (3-5 test kullanıcısı)
+  - Achievements + progress sayfası dolu mu kontrol
+- [ ] **1-2 gerçek pilot kullanıcı davet et** (önceden iletişim kurulmuş)
+- [ ] Pilot kullanıcıların ilk seansını **canlı izle** (Vercel logs'tan)
+- [ ] Hata olursa anında müdahale; takım Slack/WhatsApp grubu açık tutulsun
+- [ ] Akşam pilot kullanıcılardan kısa geri bildirim (telefon/mesaj)
+
+### Hafta sonu — 2-3 Mayıs (Pilot Geri Bildirim + Production Hazırlık)
+
+- [ ] Pilot kullanıcıların gerçek seans verileriyle:
+  - Rapor kalitesi yeterli mi? (LLM prompt iyileştirme döngüsü)
+  - Persona davranışları ikna edici mi?
+  - UI bug'ları var mı?
+- [ ] Production deploy için tüm env'ler hazır:
+  - `.env.production` lokalde oluştur (gizli — `.gitignore`'da)
+  - Production DB sıfırla (yeni Supabase projesi VEYA Aion_Mirror tüm drop)
   - `supabase/migrations/` altındaki tüm SQL'leri sırayla çalıştır (001 → 049)
-- [ ] Production'da Auth → SMTP (Resend) ayarla
-- [ ] Production'da Storage bucket'ları (`avatars`, `tenants`, `report-audio`) oluştur
-- [ ] Vercel → Settings → Environment Variables → tüm production env'lerini doldur
-- [ ] `.env.production` lokalde oluştur (gizli — `.gitignore`'da)
-- [ ] QStash'te production receiver URL'ini ayarla
-- [ ] Resend'de production sender domain'i (`mirror.aionmore.com`) doğrula
+  - Production Auth → SMTP (Resend) ayarla
+  - Production Storage bucket'ları (`avatars`, `tenants`, `report-audio`)
+  - QStash production receiver URL ayarla
+  - Resend production domain (`mirror.aionmore.com`) doğrulanmış mı kontrol — DNS kontrolü
 
-### Gün 7 — 1 Mayıs (Soft Launch)
+### Gün 10 — 4 Mayıs Pazartesi (Production Deploy)
+
+- [ ] Sabah: Vercel'de production deployment branch ayarı
+- [ ] Production env'leri Vercel → Settings → Environment Variables'e gir (16+ env)
+- [ ] Push → otomatik deploy
+- [ ] Production URL üzerinden Özcan kendi hesabıyla smoke test
+- [ ] Sorun yoksa: pilot kullanıcılara bildirim ("Production'a geçtik")
+- [ ] İlk hafta intensif izleme: Vercel logs + Supabase logs + kullanıcı geri bildirimi
 
 - [ ] Vercel'e production branch push → deploy
 - [ ] Production URL üzerinden kendi hesabınla bir seans yap
