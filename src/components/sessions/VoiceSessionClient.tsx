@@ -52,7 +52,7 @@ const TURN_LABELS: Record<string, string> = {
   listening: 'Sizi dinliyorum...',
   recording: 'Konuşmanız algılandı...',
   processing: 'Düşünüyor...',
-  speaking: 'Koç konuşuyor...',
+  speaking: '',
   error: 'Hata oluştu',
 }
 
@@ -461,7 +461,7 @@ export function VoiceSessionClient({
               turn === 'error' && 'text-red-300',
             )}
           >
-            {TURN_LABELS[turn]}
+            {turn === 'speaking' ? `${personaName} konuşuyor...` : TURN_LABELS[turn]}
           </p>
         </div>
 

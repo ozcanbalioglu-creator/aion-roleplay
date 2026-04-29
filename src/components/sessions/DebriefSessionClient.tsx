@@ -201,9 +201,10 @@ export function DebriefSessionClient({
         const coachText = await sendToDebrief(transcript)
         if (coachText) await speakDebrief(coachText)
         else setTurn('listening')
-      } catch {
+      } catch (err) {
+        console.error('[DebriefSessionClient] onSpeechEnd error:', err)
         setTurn('error')
-        setTimeout(() => setTurn('listening'), 2000)
+        setTimeout(() => setTurn('listening'), 3000)
       }
     },
     [sessionId, debriefEnded, sendToDebrief, speakDebrief, setCurrentTranscript, setTurn]

@@ -3,6 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
+import { scheduleEvaluationJob } from '@/lib/evaluation/evaluation.queue'
 
 export async function finishDebriefAction(
   sessionId: string
@@ -26,12 +27,18 @@ export async function finishDebriefAction(
     return { success: false, evaluationReady: false, error: 'Debrief tamamlanamadı' }
   }
 
-  // Değerlendirme hazır mı?
+  // Değerlendirme hazır mı? Yoksa yeniden kuyruğa al (ilk job başarısız olmuş olabilir).
   const { data: evaluation } = await supabase
     .from('evaluations')
     .select('id')
     .eq('session_id', sessionId)
     .maybeSingle()
+
+  if (!evaluation) {
+    scheduleEvaluationJob(sessionId).catch((e) =>
+      console.error('[finishDebriefAction] evaluation job yeniden kuyruğa alınamadı:', e)
+    )
+  }
 
   revalidatePath(`/dashboard/sessions/${sessionId}`)
   return { success: true, evaluationReady: !!evaluation }
