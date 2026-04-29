@@ -5,6 +5,8 @@ import { awardXPAndBadges } from '@/lib/evaluation/gamification.service'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { scheduleDevelopmentPlanJob } from '@/lib/development-plan/plan.queue'
 
+export const maxDuration = 60 // Vercel max: free=10s, pro=60s, enterprise=300s
+
 const receiver = new Receiver({
   currentSigningKey: process.env.UPSTASH_QSTASH_CURRENT_SIGNING_KEY!,
   nextSigningKey: process.env.UPSTASH_QSTASH_NEXT_SIGNING_KEY!,

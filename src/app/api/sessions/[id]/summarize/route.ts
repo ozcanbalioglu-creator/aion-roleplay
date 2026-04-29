@@ -4,6 +4,8 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getLLMAdapter } from '@/adapters/llm'
 import { encrypt, decrypt } from '@/lib/encryption'
 
+export const maxDuration = 60
+
 const receiver = new Receiver({
   currentSigningKey: process.env.UPSTASH_QSTASH_CURRENT_SIGNING_KEY!,
   nextSigningKey: process.env.UPSTASH_QSTASH_NEXT_SIGNING_KEY!,

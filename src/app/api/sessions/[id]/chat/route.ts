@@ -7,6 +7,8 @@ import { endSessionAction } from '@/lib/actions/session.actions'
 import type { SessionPhase } from '@/lib/session/message.service'
 import { decrypt } from '@/lib/encryption'
 
+export const maxDuration = 60
+
 // Geniş tolerant: bracket varyasyonları, boşluk, büyük/küçük harf, çoklu eşleşme.
 // Faz çıkarımı için ayrı bir bracket-strict regex kullanılır.
 const PHASE_MARKER_STRIP_REGEX = /\[\s*PHASE\s*:?\s*[a-zA-Z_]+\s*\]/gi
