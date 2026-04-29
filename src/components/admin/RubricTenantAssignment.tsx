@@ -77,7 +77,7 @@ export function RubricTenantAssignment({ templateId, assigned, unassigned }: Pro
           ))}
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">Bu rubric henüz hiçbir tenant'a atanmamış.</p>
+        <p className="text-xs text-muted-foreground">Bu rubric henüz hiçbir tenant&apos;a atanmamış.</p>
       )}
 
       {unassignedList.length > 0 && (
