@@ -25,7 +25,7 @@ import type { BulkUploadResult, BulkUploadRow } from '@/lib/actions/bulk-upload.
 import { toast } from '@/lib/toast'
 
 function downloadTemplate() {
-  window.location.href = '/api/templates/users'
+  window.location.href = '/templates/kullanici_sablonu.xlsx'
 }
 
 function StatusBadge({ status }: { status: BulkUploadRow['status'] }) {

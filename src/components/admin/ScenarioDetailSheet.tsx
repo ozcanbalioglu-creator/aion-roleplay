@@ -25,6 +25,11 @@ interface ScenarioDetailSheetProps {
 const DIFF_COLORS = ['', 'text-green-500', 'text-lime-500', 'text-yellow-500', 'text-orange-500', 'text-red-500']
 const DIFF_LABELS = ['', 'Kolay', 'Orta-Alt', 'Orta', 'Zor', 'Çok Zor']
 
+const PERSONALITY_LABELS: Record<string, string> = {
+  dominant: 'Baskın', compliant: 'Uyumlu', resistant: 'Dirençli',
+  analytical: 'Analitik', expressive: 'Duygusal', withdrawn: 'Çekingen',
+}
+
 export function ScenarioDetailSheet({ scenario, open, onOpenChange }: ScenarioDetailSheetProps) {
   if (!scenario) return null
 
@@ -32,7 +37,7 @@ export function ScenarioDetailSheet({ scenario, open, onOpenChange }: ScenarioDe
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full max-w-lg overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
         <SheetHeader className="mb-6">
           <SheetTitle>{scenario.title}</SheetTitle>
         </SheetHeader>
@@ -54,11 +59,19 @@ export function ScenarioDetailSheet({ scenario, open, onOpenChange }: ScenarioDe
             <p className="text-sm leading-relaxed">{scenario.description}</p>
           </div>
 
-          {/* Bağlam */}
+          {/* Bağlam Kurulumu */}
           {scenario.context_setup && (
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Bağlam Kurulumu</p>
               <p className="text-sm leading-relaxed text-muted-foreground">{scenario.context_setup}</p>
+            </div>
+          )}
+
+          {/* Rol Bağlamı */}
+          {(scenario as any).role_context && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Yönetici Rolü</p>
+              <p className="text-sm leading-relaxed text-muted-foreground">{(scenario as any).role_context}</p>
             </div>
           )}
 
@@ -93,7 +106,9 @@ export function ScenarioDetailSheet({ scenario, open, onOpenChange }: ScenarioDe
                 )}
                 <div>
                   <p className="font-medium text-sm">{scenario.personas.name}</p>
-                  <p className="text-xs text-muted-foreground">{scenario.personas.personality_type}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {PERSONALITY_LABELS[scenario.personas.personality_type] ?? scenario.personas.personality_type}
+                  </p>
                 </div>
               </div>
             </div>

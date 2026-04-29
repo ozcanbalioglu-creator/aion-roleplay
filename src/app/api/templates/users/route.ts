@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
 
-const ROLES = ['Kullanıcı', 'Yönetici', 'İK Admin', 'İK Görüntüleyici', 'Tenant Admin']
+const ROLES = ['Kullanıcı', 'Yönetici', 'İK Admin', 'İK Görüntüleyici']
 
 export async function GET() {
   const wb = new ExcelJS.Workbook()

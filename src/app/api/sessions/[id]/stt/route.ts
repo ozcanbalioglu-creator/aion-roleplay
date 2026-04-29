@@ -62,7 +62,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!session) return new Response('Seans bulunamadı', { status: 404 })
   if (session.user_id !== currentUser.id) return new Response('Yetkisiz', { status: 403 })
-  if (session.status !== 'active') {
+  if (session.status !== 'active' && session.status !== 'debrief_active') {
     return new Response(`Seans aktif değil (current=${session.status})`, { status: 409 })
   }
   if (session.session_mode !== 'voice') return new Response('Voice seans değil', { status: 400 })

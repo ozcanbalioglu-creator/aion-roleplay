@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { Badge } from '@/components/ui/badge'
 import { assignPersonaToTenantAction, removePersonaFromTenantAction } from '@/lib/actions/persona.actions'
 import { UserCircle, Building2, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -18,18 +17,12 @@ interface TenantPersonaAssignmentProps {
 
 const DIFFICULTY_COLORS = ['', 'bg-green-500', 'bg-lime-500', 'bg-yellow-500', 'bg-orange-500', 'bg-red-500']
 
-const PERSONALITY_LABELS: Record<string, string> = {
+const GROWTH_TYPE_LABELS: Record<string, string> = {
+  falling_performance:  'Düşen Performans',
+  rising_performance:   'Yükselen Performans',
   resistant_experience: 'Dirençli Deneyim',
-  rising_performance: 'Yükselen Performans',
-  falling_performance: 'Düşen Performans',
-  new_to_role: 'Yeni Göreve Başlayan',
-  new_starter: 'Yeni Başlayan',
-  motivation_crisis: 'Motivasyon Krizi',
-  dominant: 'Baskın',
-  compliant: 'Uyumlu',
-  analytical: 'Analitik',
-  expressive: 'Ekspresif',
-  withdrawn: 'İçe Kapanık',
+  new_to_role:          'Yeni Göreve Başlayan',
+  motivation_crisis:    'Motivasyon Krizi',
 }
 
 export function TenantPersonaAssignment({ personas, tenants, initialMappings }: TenantPersonaAssignmentProps) {
@@ -118,12 +111,13 @@ export function TenantPersonaAssignment({ personas, tenants, initialMappings }: 
       {!selectedTenantId ? (
         <p className="py-12 text-center text-sm text-muted-foreground">Yukarıdan bir şirket seçin.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {personas.map((persona) => {
             const assigned = isAssigned(persona.id)
             const loading = loadingKey === persona.id
-            const displayName = persona.name
-            const personalityLabel = PERSONALITY_LABELS[persona.personality_type] ?? persona.personality_type
+            const difficultyValue = persona.difficulty ?? 0
+            const growthLabel = GROWTH_TYPE_LABELS[(persona as any).growth_type] ?? null
+            const description = persona.scenario_description
 
             return (
               <button
@@ -137,65 +131,71 @@ export function TenantPersonaAssignment({ personas, tenants, initialMappings }: 
                     : 'border-border bg-card shadow-sm hover:border-slate-400 hover:shadow-md'
                 )}
               >
-                <div className="flex h-24">
+                <div className="flex gap-4 p-6">
 
-                  {/* Kolon 1: Fotoğraf */}
-                  <div className="w-20 shrink-0">
+                  {/* Fotoğraf 80×80 */}
+                  <div className={cn(
+                    'h-20 w-20 shrink-0 overflow-hidden rounded-lg transition-colors',
+                    assigned
+                      ? 'bg-emerald-100 dark:bg-emerald-900/30'
+                      : 'bg-primary/10'
+                  )}>
                     {persona.avatar_image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={persona.avatar_image_url} alt={displayName} className="h-full w-full object-cover" />
+                      <img
+                        src={persona.avatar_image_url}
+                        alt={persona.name}
+                        className="h-full w-full object-cover object-[center_15%]"
+                      />
                     ) : (
                       <div className={cn(
-                        'flex h-full w-full items-center justify-center transition-colors',
-                        assigned
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30'
-                          : 'bg-muted text-muted-foreground'
+                        'flex h-full w-full items-center justify-center',
+                        assigned ? 'text-emerald-700 dark:text-emerald-400' : 'text-primary'
                       )}>
-                        {displayName?.[0]
-                          ? <span className="text-2xl font-bold uppercase">{displayName[0]}</span>
+                        {persona.name?.[0]
+                          ? <span className="text-2xl font-bold uppercase">{persona.name[0]}</span>
                           : <UserCircle className="h-8 w-8" />
                         }
                       </div>
                     )}
                   </div>
 
-                  {/* Kolon 2: Kimlik */}
-                  <div className="flex flex-1 flex-col justify-between border-x border-border/20 px-3 py-2.5 min-w-0">
-                    <div className="space-y-0.5 min-w-0">
-                      <p className="truncate font-semibold text-sm">{displayName}</p>
-                      <p className="truncate text-[10px] uppercase tracking-wider text-muted-foreground">{persona.title}</p>
-                    </div>
-                    <p className="truncate text-[10px] text-muted-foreground">{personalityLabel}</p>
-                  </div>
+                  {/* İçerik */}
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <p className="text-xl font-bold leading-tight" style={{ color: '#8052a3' }}>{persona.name}</p>
 
-                  {/* Kolon 3: Zorluk + Durum */}
-                  <div className="flex w-20 shrink-0 flex-col justify-between px-2.5 py-2.5">
-                    <div className="space-y-1">
-                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Zorluk</p>
-                      <span className="flex flex-wrap gap-0.5">
+                    {persona.title && (
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-tight">{persona.title}</p>
+                    )}
+
+                    {growthLabel && (
+                      <p className="text-[10px] text-muted-foreground">{growthLabel}</p>
+                    )}
+
+                    {description && (
+                      <p className="mt-1 text-sm leading-snug text-muted-foreground line-clamp-2">{description}</p>
+                    )}
+
+                    <div className="mt-auto flex items-center gap-3 pt-2">
+                      <span className="flex gap-0.5">
                         {Array.from({ length: 5 }).map((_, i) => (
                           <span key={i} className={cn(
                             'h-1.5 w-1.5 rounded-full',
-                            i < (persona.difficulty ?? 0) ? DIFFICULTY_COLORS[persona.difficulty ?? 0] : 'bg-muted'
+                            i < difficultyValue ? DIFFICULTY_COLORS[difficultyValue] : 'bg-muted'
                           )} />
                         ))}
                       </span>
+                      {persona.experience_years ? (
+                        <span className="text-xs text-muted-foreground">{persona.experience_years} yıl</span>
+                      ) : null}
+                      {assigned && (
+                        <CheckCircle2 className="ml-auto h-5 w-5 text-emerald-500" />
+                      )}
                     </div>
-
-                    {/* Atandı işareti VEYA yıl */}
-                    {assigned ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                    ) : persona.experience_years ? (
-                      <div>
-                        <p className="text-xs font-semibold">{persona.experience_years}</p>
-                        <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Yıl</p>
-                      </div>
-                    ) : null}
                   </div>
 
                 </div>
 
-                {/* Loading overlay */}
                 {loading && (
                   <div className="absolute inset-0 flex items-center justify-center bg-background/70">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />

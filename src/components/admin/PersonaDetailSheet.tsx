@@ -53,7 +53,7 @@ export function PersonaDetailSheet({ persona, open, onOpenChange }: PersonaDetai
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
         <SheetHeader className="mb-6">
           <SheetTitle>Persona Detayı</SheetTitle>
         </SheetHeader>

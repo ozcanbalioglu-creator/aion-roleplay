@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Card, CardContent, CardFooter } from '@/components/ui/card'
+import { Card, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -14,6 +14,14 @@ import type { Persona } from '@/types'
 import { cn } from '@/lib/utils'
 
 const DIFFICULTY_COLORS = ['', 'bg-green-500', 'bg-lime-500', 'bg-yellow-500', 'bg-orange-500', 'bg-red-500']
+
+const GROWTH_TYPE_LABELS: Record<string, string> = {
+  falling_performance:  'Düşen Performans',
+  rising_performance:   'Yükselen Performans',
+  resistant_experience: 'Dirençli Deneyim',
+  new_to_role:          'Yeni Göreve Başlayan',
+  motivation_crisis:    'Motivasyon Krizi',
+}
 
 interface PersonaGridProps {
   personas: Persona[]
@@ -37,7 +45,9 @@ export function PersonaGrid({ personas, isSuperAdmin = false }: PersonaGridProps
     <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {personas.map((persona) => {
-          const displayName = persona.name
+          const difficultyValue = persona.difficulty ?? 0
+          const growthLabel = GROWTH_TYPE_LABELS[(persona as any).growth_type] ?? null
+          const description = persona.scenario_description
 
           return (
             <Card
@@ -45,76 +55,68 @@ export function PersonaGrid({ personas, isSuperAdmin = false }: PersonaGridProps
               onClick={() => setDetailPersona(persona)}
               className="overflow-hidden bg-card border-border/40 shadow-md hover:shadow-xl hover:border-primary/40 transition-all cursor-pointer"
             >
-              {/* ── 3 Kolon: Foto | Kimlik | Detay ── */}
-              <CardContent className="p-0">
-                <div className="flex h-28">
+              <div className="flex gap-4 p-6">
 
-                  {/* Kolon 1: Fotoğraf */}
-                  <div className="w-20 shrink-0 overflow-hidden">
-                    {persona.avatar_image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={persona.avatar_image_url}
-                        alt={displayName}
-                        className="h-full w-full object-cover object-[center_15%]"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
-                        {displayName?.[0]
-                          ? <span className="text-2xl font-bold uppercase">{displayName[0]}</span>
-                          : <UserCircle className="h-8 w-8" />
-                        }
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Kolon 2: Ad / Ünvan / Durum */}
-                  <div className="flex flex-1 flex-col justify-between border-x border-border/20 px-3 py-2.5 min-w-0">
-                    <div className="space-y-0.5 min-w-0">
-                      <p className="font-semibold text-sm leading-tight truncate">{displayName}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider truncate leading-tight">
-                        {persona.title}
-                      </p>
+                {/* Fotoğraf 80×80 */}
+                <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-primary/10">
+                  {persona.avatar_image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={persona.avatar_image_url}
+                      alt={persona.name}
+                      className="h-full w-full object-cover object-[center_15%]"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-primary">
+                      {persona.name?.[0]
+                        ? <span className="text-2xl font-bold uppercase">{persona.name[0]}</span>
+                        : <UserCircle className="h-8 w-8" />
+                      }
                     </div>
-                    <div className="space-y-1">
-                      {persona.personality_type && (
-                        <p className="text-[10px] text-muted-foreground truncate">{persona.personality_type}</p>
-                      )}
+                  )}
+                </div>
+
+                {/* İçerik */}
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <p className="text-xl font-bold leading-tight" style={{ color: '#8052a3' }}>{persona.name}</p>
+
+                  {persona.title && (
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-tight">{persona.title}</p>
+                  )}
+
+                  {growthLabel && (
+                    <p className="text-[10px] text-muted-foreground">{growthLabel}</p>
+                  )}
+
+                  {description && (
+                    <p className="mt-1 text-sm leading-snug text-muted-foreground line-clamp-2">{description}</p>
+                  )}
+
+                  <div className="mt-auto flex items-center gap-3 pt-2">
+                    <span className="flex gap-0.5">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <span
+                          key={i}
+                          className={cn(
+                            'h-1.5 w-1.5 rounded-full',
+                            i < difficultyValue ? DIFFICULTY_COLORS[difficultyValue] : 'bg-muted'
+                          )}
+                        />
+                      ))}
+                    </span>
+                    {persona.experience_years ? (
+                      <span className="text-xs text-muted-foreground">{persona.experience_years} yıl</span>
+                    ) : null}
+                    <div className="ml-auto">
                       <StatusBadge active={persona.is_active} />
                     </div>
                   </div>
-
-                  {/* Kolon 3: Zorluk / Tecrübe */}
-                  <div className="flex w-20 shrink-0 flex-col justify-between px-2.5 py-2.5">
-                    <div className="space-y-1">
-                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Zorluk</p>
-                      <span className="flex flex-wrap gap-0.5">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <span
-                            key={i}
-                            className={cn(
-                              'h-1.5 w-1.5 rounded-full',
-                              i < (persona.difficulty ?? 0)
-                                ? DIFFICULTY_COLORS[persona.difficulty ?? 0]
-                                : 'bg-muted'
-                            )}
-                          />
-                        ))}
-                      </span>
-                    </div>
-                    {persona.experience_years ? (
-                      <div>
-                        <p className="text-xs font-semibold">{persona.experience_years}</p>
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Yıl</p>
-                      </div>
-                    ) : null}
-                  </div>
-
                 </div>
-              </CardContent>
+
+              </div>
 
               {isSuperAdmin && (
-                <CardFooter className="gap-2 border-t border-border/20 p-2">
+                <CardFooter className="gap-2 border-t border-border/20 px-6 py-3">
                   <span onClick={(e) => e.stopPropagation()}>
                     <Button
                       asChild

@@ -101,7 +101,6 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
                   <SelectValue placeholder="Rol seçin" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tenant_admin">Kurum Admin</SelectItem>
                   <SelectItem value="hr_admin">İK Admin</SelectItem>
                   <SelectItem value="hr_viewer">İK Görüntüleyici</SelectItem>
                   <SelectItem value="manager">Yönetici</SelectItem>
