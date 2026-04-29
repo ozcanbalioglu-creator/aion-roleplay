@@ -52,7 +52,7 @@ export async function finishDebriefAction(
     // Sessions tablosundan ihtiyaç duyulan bilgileri al (XP/badge için)
     const { data: sess } = await supabase
       .from('sessions')
-      .select('user_id, tenant_id, persona_id, scenario_id')
+      .select('user_id, tenant_id, persona_id, scenario_id, duration_seconds')
       .eq('id', sessionId)
       .single()
 
@@ -64,6 +64,7 @@ export async function finishDebriefAction(
         personaId: sess.persona_id,
         scenarioId: sess.scenario_id,
         overallScore: result.overallScore,
+        durationSeconds: sess.duration_seconds,
       }).catch((e) => console.error('[finishDebriefAction] XP/badge fail (non-fatal):', e))
     }
 
