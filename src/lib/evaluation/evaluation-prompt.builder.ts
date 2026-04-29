@@ -36,23 +36,11 @@ export async function buildEvaluationPrompt(
   // Schema notu (migration 005 + 026 + 031): rubric_dimensions kolonları
   //   name (TEXT), description (TEXT), score_labels (JSONB: {"1":"...","2":"...","3":"...","4":"...","5":"..."})
   // dimension_name / level_1_desc gibi kolonlar YOK — score_labels'tan parse ediyoruz.
-  const templateFilter = tenantRow?.rubric_template_id
-    ? supabase
-        .from('rubric_templates')
-        .select(`id, name, rubric_dimensions(dimension_code, name, description, is_required, score_labels)`)
-        .eq('id', tenantRow.rubric_template_id)
-        .eq('is_active', true)
-        .single()
-    : supabase
-        .from('rubric_templates')
-        .select(`id, name, rubric_dimensions(dimension_code, name, description, is_required, score_labels)`)
-        .eq('is_default', true)
-        .eq('is_active', true)
-        .single()
-
-  const { data: rubricData, error } = await templateFilter
+  const RUBRIC_SELECT = `id, name, rubric_dimensions(dimension_code, name, description, is_required, score_labels)`
 
   type RubricRow = {
+    id: string
+    name: string
     rubric_dimensions: {
       dimension_code: string
       name: string
@@ -61,16 +49,69 @@ export async function buildEvaluationPrompt(
       score_labels: Record<string, string> | null
     }[]
   }
-  const typed = rubricData as RubricRow | null
 
-  if (error || !typed?.rubric_dimensions?.length) {
-    console.error('[buildEvaluationPrompt] Rubric fetch failed:', { error, rubricData, tenantId, rubricTemplateId: tenantRow?.rubric_template_id })
-    throw new Error(`Aktif rubric bulunamadı (tenantId=${tenantId}, error=${error?.message ?? 'no rows'})`)
+  // Çok katmanlı fallback — production'da en az bir rubric'in dönmesini garantile:
+  //  1. Tenant'a açıkça atanmış rubric (varsa)
+  //  2. is_default=true AND is_active=true global rubric
+  //  3. is_active=true herhangi bir rubric (en yeni)
+  // Hiçbiri tutmazsa throw — gerçekten boş DB anlamına gelir.
+  let rubricRow: RubricRow | null = null
+
+  if (tenantRow?.rubric_template_id) {
+    const { data } = await supabase
+      .from('rubric_templates')
+      .select(RUBRIC_SELECT)
+      .eq('id', tenantRow.rubric_template_id)
+      .eq('is_active', true)
+      .maybeSingle()
+    rubricRow = (data as RubricRow | null) ?? null
   }
+
+  if (!rubricRow?.rubric_dimensions?.length) {
+    const { data } = await supabase
+      .from('rubric_templates')
+      .select(RUBRIC_SELECT)
+      .eq('is_default', true)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    rubricRow = (data as RubricRow | null) ?? null
+  }
+
+  if (!rubricRow?.rubric_dimensions?.length) {
+    // Son çare: aktif olan herhangi bir rubric (created_at en yeni).
+    // Bu fallback olmazsa rubric atanmamış tenant'larda evaluation hep patlıyordu.
+    const { data } = await supabase
+      .from('rubric_templates')
+      .select(RUBRIC_SELECT)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    rubricRow = (data as RubricRow | null) ?? null
+    if (rubricRow) {
+      console.warn(
+        `[buildEvaluationPrompt] tenant=${tenantId} için ne atanmış ne de default rubric bulundu — son aktif rubric kullanıldı: ${rubricRow.name}`
+      )
+    }
+  }
+
+  if (!rubricRow?.rubric_dimensions?.length) {
+    console.error('[buildEvaluationPrompt] Hiçbir aktif rubric bulunamadı:', {
+      tenantId,
+      rubricTemplateId: tenantRow?.rubric_template_id,
+    })
+    throw new Error(`Aktif rubric bulunamadı (tenantId=${tenantId})`)
+  }
+
+  const typed: RubricRow = rubricRow
 
   const dimensions: RubricDimensionForEval[] = typed.rubric_dimensions.map((d) => ({
     dimensionCode: d.dimension_code,
-    dimensionName: d.name,
+    // Migration 019'daki eski rubric'lerde name NULL olabilir (026'dan önce eklenenler).
+    // dimension_code'u okunabilir Türkçe forma çevir: "active_listening" → "Active Listening"
+    dimensionName: d.name ?? d.dimension_code.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
     description: d.description ?? '',
     isRequired: d.is_required,
     level1Desc: d.score_labels?.['1'] ?? 'Yeterli değil',

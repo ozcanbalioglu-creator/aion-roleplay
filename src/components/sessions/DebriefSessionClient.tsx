@@ -14,6 +14,14 @@ import { cn } from '@/lib/utils'
 
 const DEBRIEF_INIT_PREFIX = '[DEBRIEF_INIT]'
 
+// Server tarafında strip ediliyor ama chunk boundary'sinde sızabileceği için
+// UI'a render etmeden önce defansif olarak burada da temizliyoruz.
+const DEBRIEF_END_STRIP_REGEX = /\[\s*DEBRIEF[\s_-]?END\s*\]/gi
+const DEBRIEF_END_NAKED_STRIP_REGEX = /\bDEBRIEF[\s_-]?END\b/gi
+function stripDebriefMarker(text: string): string {
+  return text.replace(DEBRIEF_END_STRIP_REGEX, '').replace(DEBRIEF_END_NAKED_STRIP_REGEX, '')
+}
+
 const TURN_LABELS: Record<string, string> = {
   idle: 'Hazırlanıyor...',
   listening: 'Sizi dinliyorum...',
@@ -115,7 +123,8 @@ export function DebriefSessionClient({
               const data = JSON.parse(line.slice(6))
               if (data.text) {
                 accumulatedText += data.text
-                updateLastMessage(accumulatedText)
+                // Defansif: marker chunk-boundary'de sızsa bile UI'a temiz metin yaz
+                updateLastMessage(stripDebriefMarker(accumulatedText))
               }
               if (data.debriefEnded) ended = true
               if (data.done) finalizeLastMessage(currentPhase)
@@ -125,7 +134,9 @@ export function DebriefSessionClient({
 
         if (ended) setDebriefEnded(true)
 
-        return accumulatedText.trim() || null
+        // TTS'e marker geçmesin — defansif strip
+        const cleaned = stripDebriefMarker(accumulatedText).trim()
+        return cleaned || null
       } catch (err) {
         if ((err as Error).name === 'AbortError') return null
         finalizeLastMessage(currentPhase)

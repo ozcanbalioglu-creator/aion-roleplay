@@ -6,6 +6,11 @@ import { VoiceSessionClient } from '@/components/sessions/VoiceSessionClient'
 import { DroppedSessionRecovery } from '@/components/sessions/DroppedSessionRecovery'
 import { DebriefSessionClient } from '@/components/sessions/DebriefSessionClient'
 
+// Server action timeout — finishDebriefAction içinde sync runEvaluation 15-30sn sürebilir.
+// Bu page üzerinden çağrılan tüm server action'lar bu süreyi miras alır.
+// Hobby planda max 60, Pro planda max 300 saniye.
+export const maxDuration = 60
+
 interface SessionPageProps {
   params: Promise<{ id: string }>
 }

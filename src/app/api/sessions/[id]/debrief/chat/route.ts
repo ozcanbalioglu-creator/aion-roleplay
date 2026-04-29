@@ -5,7 +5,18 @@ import { getLLMAdapter } from '@/adapters/llm'
 import { buildDebriefSystemPrompt } from '@/lib/session/debrief-prompt.builder'
 import { encrypt, decrypt } from '@/lib/encryption'
 
-const DEBRIEF_END_MARKER = '[DEBRIEF_END]'
+// Tolerant regex: bracket varyantları ("[DEBRIEF_END]", "[ DEBRIEF END ]", "[debrief-end]"),
+// naked ifade ("DEBRIEF_END", "DEBRIEF END") — TTS/UI leak'i önlemek için tüm formları yakalar.
+const DEBRIEF_END_BRACKET_REGEX = /\[\s*DEBRIEF[\s_-]?END\s*\]/gi
+const DEBRIEF_END_NAKED_REGEX = /\bDEBRIEF[\s_-]?END\b/gi
+// Stream chunk boundary'sinde marker bölünebileceği için tail buffer:
+// "[DEBRIEF_END]" 13 karakter; bracket+boşluk varyantı 16'ya çıkar; güvenli pay 20 char.
+const MARKER_TAIL_HOLD = 20
+
+function stripDebriefMarkers(text: string): string {
+  return text.replace(DEBRIEF_END_BRACKET_REGEX, '').replace(DEBRIEF_END_NAKED_REGEX, '')
+}
+
 // En az 6 mesaj (3 tur: kullanıcı+koç x3) olmadan debrief bitmez.
 const DEBRIEF_END_MIN_MESSAGES = 6
 
@@ -93,17 +104,41 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           maxTokens: 400,
         })
 
+        // Tail buffer pattern: marker chunk boundary'sinde bölünürse de yakalanır.
+        // Her chunk geldiğinde pending'e ekle, marker variants'larını strip et,
+        // son MARKER_TAIL_HOLD karakteri tut (potansiyel kısmi marker olabilir),
+        // gerisini client'a emit et. Stream sonunda buffer'ı flush et.
+        let pending = ''
+
         for await (const chunk of openaiStream) {
           if (!chunk) continue
           fullResponse += chunk
+          pending += chunk
 
-          const cleanChunk = chunk.replace(DEBRIEF_END_MARKER, '')
-          if (cleanChunk) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: cleanChunk })}\n\n`))
+          // Tam marker varsa strip et
+          pending = stripDebriefMarkers(pending)
+
+          // Tail'i tut, gerisini emit et
+          if (pending.length > MARKER_TAIL_HOLD) {
+            const emit = pending.slice(0, pending.length - MARKER_TAIL_HOLD)
+            pending = pending.slice(pending.length - MARKER_TAIL_HOLD)
+            if (emit) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: emit })}\n\n`))
+            }
           }
         }
 
-        const markerPresent = fullResponse.includes(DEBRIEF_END_MARKER)
+        // Stream bitti — kalan tail'i temizle ve flush et
+        pending = stripDebriefMarkers(pending)
+        if (pending) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: pending })}\n\n`))
+        }
+
+        // String.match stateless; global regex .test() lastIndex sızıntısını engellemek için.
+        const markerPresent =
+          fullResponse.match(DEBRIEF_END_BRACKET_REGEX) !== null ||
+          fullResponse.match(DEBRIEF_END_NAKED_REGEX) !== null
+
         if (markerPresent) {
           const { count } = await serviceSupabase
             .from('debrief_messages')
@@ -116,7 +151,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           }
         }
 
-        const cleanResponse = fullResponse.replace(DEBRIEF_END_MARKER, '').trim()
+        const cleanResponse = stripDebriefMarkers(fullResponse).trim()
 
         // Koç yanıtını kaydet
         const phase = historyMessages.length < 4 ? 'intro' : debriefEnded ? 'closing' : 'feedback'

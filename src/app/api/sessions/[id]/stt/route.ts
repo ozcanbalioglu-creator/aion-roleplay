@@ -28,6 +28,8 @@ const WHISPER_PHANTOM_PATTERNS: RegExp[] = [
   /\byorum\s+yap(may[ıi])?\s+unutmay[ıi]n/i,                 // "yorum yapmayı unutmayın"
   /\bkanal[ıi]m[ıi]z[aıe]?\s*abone/i,                        // "kanalımıza abone olun"
   /\bbir\s+sonraki\s+videoda/i,                              // "bir sonraki videoda görüşmek üzere"
+  /\bba[şs]ka\s+bir\s+videoda/i,                             // "Başka bir videoda görüşünceye dek"
+  /\bg[öo]r[üu][şs][üu]nceye\s+(de[kg]|kadar)/i,             // "görüşünceye dek/kadar" (YouTube outro)
 ]
 
 const MIN_TRANSCRIPT_LENGTH = 3 // 1-2 karakterlik transkriptler genelde gürültü
