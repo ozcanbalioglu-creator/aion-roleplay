@@ -192,15 +192,17 @@ export async function runEvaluation(sessionId: string): Promise<EvaluationResult
 
   // Kullanım metriğini kaydet — non-fatal: evaluation zaten yazıldı,
   // bu insert fail olursa runEvaluation'ı çökertmemeli (idempotency kırılır).
+  // Şema (migration 010): metric_type (event_type DEĞİL) + provider zorunlu.
   try {
     const { error: usageErr } = await supabase.from('usage_metrics').insert({
       session_id: sessionId,
       tenant_id: session.tenant_id,
       user_id: session.user_id,
-      event_type: 'evaluation',
+      metric_type: 'evaluation',
+      provider: 'openai',
+      model: process.env.OPENAI_LLM_MODEL ?? 'gpt-4o',
       prompt_tokens: response.usage?.prompt_tokens ?? 0,
       completion_tokens: response.usage?.completion_tokens ?? 0,
-      model: process.env.OPENAI_LLM_MODEL ?? 'gpt-4o',
       latency_ms: latencyMs,
     })
     if (usageErr) console.error('[runEvaluation] usage_metrics insert FAIL (non-fatal):', usageErr.message)
