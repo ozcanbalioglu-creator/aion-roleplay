@@ -56,7 +56,7 @@ export default async function NewSessionPage({ searchParams }: NewSessionPagePro
         <NewSessionStepper currentStep={1} />
       </SubHeaderShell>
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-4xl w-full px-6 py-8 space-y-8">
+        <div className="px-6 py-8 space-y-6">
           <PersonaSelectionStep personas={personas} />
         </div>
       </div>
