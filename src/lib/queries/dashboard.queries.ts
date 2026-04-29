@@ -130,20 +130,29 @@ export async function getDimensionAverages(period: DashboardPeriod = 'all') {
 
   const sessionIds = sessions.map((s) => s.id)
 
-  // Dimension scores
+  // Dimension scores — session_id kolonu YOK, evaluation_id üzerinden join lazım.
+  // Önce sessionIds'ye karşılık gelen evaluation_id'leri çek.
+  const { data: evals } = await supabase
+    .from('evaluations')
+    .select('id')
+    .in('session_id', sessionIds)
+
+  const evaluationIds = evals?.map((e) => e.id) ?? []
+  if (!evaluationIds.length) return []
+
   const { data: dimScores } = await supabase
     .from('dimension_scores')
     .select('dimension_code, score')
-    .in('session_id', sessionIds)
+    .in('evaluation_id', evaluationIds)
 
   if (!dimScores?.length) return []
 
-  // Boyut adlarını getir
+  // Boyut adlarını getir — kolon adı `name` (migration 026)
   const { data: dimMeta } = await supabase
     .from('rubric_dimensions')
-    .select('dimension_code, dimension_name')
+    .select('dimension_code, name')
 
-  const nameMap = new Map(dimMeta?.map((d) => [d.dimension_code, d.dimension_name]) ?? [])
+  const nameMap = new Map(dimMeta?.map((d) => [d.dimension_code, d.name]) ?? [])
 
   // Kod bazlı gruplama ve ortalama
   const grouped = new Map<string, number[]>()
@@ -272,18 +281,27 @@ async function getDimensionAveragesForRange(userId: string, from: string, to: st
 
   if (!sessions?.length) return []
 
+  const sessionIds = sessions.map((s) => s.id)
+  const { data: evals } = await supabase
+    .from('evaluations')
+    .select('id')
+    .in('session_id', sessionIds)
+
+  const evaluationIds = evals?.map((e) => e.id) ?? []
+  if (!evaluationIds.length) return []
+
   const { data: dimScores } = await supabase
     .from('dimension_scores')
     .select('dimension_code, score')
-    .in('session_id', sessions.map((s) => s.id))
+    .in('evaluation_id', evaluationIds)
 
   if (!dimScores?.length) return []
 
   const { data: dimMeta } = await supabase
     .from('rubric_dimensions')
-    .select('dimension_code, dimension_name')
+    .select('dimension_code, name')
 
-  const nameMap = new Map(dimMeta?.map((d) => [d.dimension_code, d.dimension_name]) ?? [])
+  const nameMap = new Map(dimMeta?.map((d) => [d.dimension_code, d.name]) ?? [])
   const grouped = new Map<string, number[]>()
 
   for (const ds of dimScores) {

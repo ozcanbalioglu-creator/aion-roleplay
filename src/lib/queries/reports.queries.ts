@@ -223,9 +223,9 @@ export async function getTeamDimensionAverages(period: ReportPeriod = 'all') {
 
   const { data: dimMeta } = await supabase
     .from('rubric_dimensions')
-    .select('dimension_code, dimension_name')
+    .select('dimension_code, name')
 
-  const nameMap = new Map(dimMeta?.map((d) => [d.dimension_code, d.dimension_name]) ?? [])
+  const nameMap = new Map(dimMeta?.map((d) => [d.dimension_code, d.name]) ?? [])
   const grouped = new Map<string, number[]>()
 
   for (const ds of dimScores) {

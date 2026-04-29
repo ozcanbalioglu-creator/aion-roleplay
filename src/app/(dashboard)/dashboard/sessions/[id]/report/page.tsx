@@ -118,13 +118,13 @@ export default async function SessionReportPage({ params }: ReportPageProps) {
                 <div className="mb-24">
                   <h3 className="font-label text-xs uppercase tracking-[0.2em] font-bold text-on-surface-variant mb-6">Competency Breakdown</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {(dimensionScores as Array<{ dimension_code: string; score: number; evidence?: string[]; feedback?: string }>).map((d) => (
+                    {(dimensionScores as Array<{ dimension_code: string; score: number; evidence_quotes?: string[]; improvement_tip?: string; rationale?: string }>).map((d) => (
                       <DimensionScoreBar
                         key={d.dimension_code}
                         dimensionCode={d.dimension_code}
                         score={d.score}
-                        evidence={d.evidence ?? []}
-                        feedback={d.feedback ?? ''}
+                        evidence={d.evidence_quotes ?? []}
+                        feedback={d.improvement_tip ?? d.rationale ?? ''}
                       />
                     ))}
                   </div>

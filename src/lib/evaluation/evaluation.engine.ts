@@ -91,33 +91,45 @@ export async function runEvaluation(sessionId: string): Promise<EvaluationResult
   if (!overallScore) throw new Error('overall_score geçersiz')
 
   // Evaluations tablosuna yaz
+  // KRİTİK: rubric_template_id NOT NULL (migration 008) — buildEvaluationPrompt'tan gelen
+  // ID burada zorunlu. Eksik bırakılırsa her insert silently fail olur, evaluation oluşmaz.
   const { data: evaluation, error: evalError } = await supabase
     .from('evaluations')
     .insert({
       session_id: sessionId,
       user_id: session.user_id,
       tenant_id: session.tenant_id,
+      rubric_template_id: promptData.rubricTemplateId,
       overall_score: overallScore,
       strengths: parsed.strengths ?? [],
       development_areas: parsed.development_areas ?? [],
       coaching_note: parsed.coaching_note ?? '',
       manager_insight: parsed.manager_insight ?? '',
+      status: 'completed',
     })
     .select('id')
     .single()
 
-  if (evalError || !evaluation) throw new Error(`Değerlendirme kaydedilemedi: ${evalError?.message}`)
+  if (evalError || !evaluation) {
+    console.error('[runEvaluation] evaluations insert FAIL:', evalError, {
+      sessionId,
+      rubric_template_id: promptData.rubricTemplateId,
+    })
+    throw new Error(`Değerlendirme kaydedilemedi: ${evalError?.message}`)
+  }
 
   // Dimension scores yaz
+  // Şema (migration 008): evaluation_id, dimension_code, score, evidence_quotes,
+  // rationale, improvement_tip — session_id ve tenant_id YOK; evidence/feedback yanlış adlar.
+  // Eski koddaki insert sessizce fail ediyordu; rapor boyut analizi hep boş geliyordu.
   type ParsedDimension = { dimension_code: string; score: number; evidence: string[]; feedback: string }
   const dimensionInserts = (parsed.dimensions ?? []).map((d: ParsedDimension) => ({
     evaluation_id: evaluation.id,
-    session_id: sessionId,
-    tenant_id: session.tenant_id,
     dimension_code: d.dimension_code,
     score: Math.min(5, Math.max(1, Number(d.score) || 3)),
-    evidence: d.evidence ?? [],
-    feedback: d.feedback ?? '',
+    evidence_quotes: d.evidence ?? [],
+    improvement_tip: d.feedback ?? '',
+    rationale: d.feedback ?? '',
   }))
 
   if (dimensionInserts.length > 0) {
@@ -127,7 +139,10 @@ export async function runEvaluation(sessionId: string): Promise<EvaluationResult
 
     if (dimError) {
       // Dimension yazımı başarısız — evaluation kaydı silinmez, uyarı loglanır
-      console.error('Boyut puanları kaydedilemedi:', dimError.message)
+      console.error('[runEvaluation] dimension_scores insert FAIL:', dimError.message, {
+        evaluationId: evaluation.id,
+        dimensionCount: dimensionInserts.length,
+      })
     }
   }
 

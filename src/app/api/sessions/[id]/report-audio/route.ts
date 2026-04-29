@@ -73,13 +73,14 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       serviceSupabase
         .from('evaluations')
         .select(
-          'id, report_audio_path, coaching_note, strengths, development_areas, dimension_scores(dimension_code, feedback)'
+          'id, report_audio_path, coaching_note, strengths, development_areas, dimension_scores(dimension_code, improvement_tip, rationale)'
         )
         .eq('session_id', sessionId)
         .maybeSingle(),
       serviceSupabase.from('personas').select('name').eq('id', session.persona_id).single(),
       serviceSupabase.from('scenarios').select('title').eq('id', session.scenario_id).single(),
-      serviceSupabase.from('rubric_dimensions').select('dimension_code, dimension_name'),
+      // dimension_name değil, name (migration 026 ile eklendi)
+      serviceSupabase.from('rubric_dimensions').select('dimension_code, name'),
     ])
 
   if (!evaluation) {
@@ -94,7 +95,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   // Boyut adı haritası
   const dimNameMap = new Map(
-    (dimMeta ?? []).map((d) => [d.dimension_code, d.dimension_name])
+    (dimMeta ?? []).map((d) => [d.dimension_code, d.name])
   )
 
   const dimScores = Array.isArray(evaluation.dimension_scores)
@@ -102,12 +103,17 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     : []
 
   const dimensionFeedbacks = dimScores
-    .filter((d: any) => d.feedback)
-    .map((d: any) => ({
-      code: d.dimension_code,
-      name: dimNameMap.get(d.dimension_code) ?? d.dimension_code,
-      feedback: d.feedback,
-    }))
+    .map((d: any) => {
+      const fb = d.improvement_tip || d.rationale || ''
+      return fb
+        ? {
+            code: d.dimension_code,
+            name: dimNameMap.get(d.dimension_code) ?? d.dimension_code,
+            feedback: fb,
+          }
+        : null
+    })
+    .filter((x): x is { code: string; name: string; feedback: string } => x !== null)
 
   const narration = buildReportNarration({
     firstName: currentUser.full_name?.split(' ')[0] ?? 'Kullanıcı',

@@ -19,7 +19,7 @@ export async function getSessionReport(sessionId: string) {
         id, overall_score, strengths, development_areas,
         coaching_note, manager_insight, status, created_at,
         dimension_scores(
-          dimension_code, score, evidence, feedback
+          dimension_code, score, evidence_quotes, improvement_tip, rationale
         )
       )
     `)

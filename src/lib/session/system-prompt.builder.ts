@@ -46,7 +46,7 @@ export async function buildSystemPrompt(params: BuildSystemPromptParams): Promis
       .from('rubric_templates')
       .select(`
         id, name,
-        rubric_dimensions(dimension_code, dimension_name, description, is_required)
+        rubric_dimensions(dimension_code, name, description, is_required)
       `)
       .or(`tenant_id.eq.${params.tenantId},tenant_id.is.null`)
       .eq('is_active', true)
@@ -167,7 +167,7 @@ Kısacası: Sen sahnedeki KARAKTERSİN, seyirci değil. Kullanıcının çıkaca
     ? `\n\n## Değerlendirme Bağlamı (sadece bilgi — kendin uygulama)
 Seans sonrası **kullanıcının (koçun)** koçluk becerileri aşağıdaki boyutlarda değerlendirilecek:
 ${(rubric as any).rubric_dimensions
-        .map((d: any) => `- **${d.dimension_name}**: ${d.description}`)
+        .map((d: any) => `- **${d.name ?? d.dimension_code}**: ${d.description ?? ''}`)
         .join('\n')}
 
 Bu boyutlar SENİ ilgilendirmez. Sen sadece kendi karakterini oyna. Kullanıcı bu becerileri uygulamaya çalışacak; sen bu uygulamaya organik bir tepki ver — iyi yapıyorsa açıl, kötü yapıyorsa kapan, kendi karakterine uygun.`

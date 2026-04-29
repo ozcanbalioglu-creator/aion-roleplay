@@ -78,7 +78,7 @@ export async function POST(
   const { data: evaluations } = await serviceSupabase
     .from('evaluations')
     .select(
-      'id, session_id, overall_score, strengths, development_areas, coaching_note, dimension_scores(dimension_code, score, feedback)'
+      'id, session_id, overall_score, strengths, development_areas, coaching_note, dimension_scores(dimension_code, score, improvement_tip, rationale)'
     )
     .in('session_id', sessionIds)
 
@@ -88,12 +88,12 @@ export async function POST(
     })
   }
 
-  // Boyut adları için rubric meta
+  // Boyut adları için rubric meta — `dimension_name` değil `name` (migration 026)
   const { data: dimMeta } = await serviceSupabase
     .from('rubric_dimensions')
-    .select('dimension_code, dimension_name')
+    .select('dimension_code, name')
 
-  const dimNameMap = new Map(dimMeta?.map((d) => [d.dimension_code, d.dimension_name]) ?? [])
+  const dimNameMap = new Map(dimMeta?.map((d) => [d.dimension_code, d.name]) ?? [])
 
   // LLM için veri özetini hazırla
   const evalSummary = evaluations.map((ev) => {
@@ -107,7 +107,7 @@ export async function POST(
       boyutlar: dimScores.map((d: any) => ({
         boyut: dimNameMap.get(d.dimension_code) ?? d.dimension_code,
         puan: d.score,
-        geri_bildirim: d.feedback,
+        geri_bildirim: d.improvement_tip || d.rationale || '',
       })),
     }
   })

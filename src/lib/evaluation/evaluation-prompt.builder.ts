@@ -17,6 +17,8 @@ export interface EvaluationPromptData {
   userPrompt: string
   dimensions: RubricDimensionForEval[]
   expectedJsonSchema: string
+  // evaluations.rubric_template_id NOT NULL — engine bu ID'yi insert'te kullanır.
+  rubricTemplateId: string
 }
 
 export async function buildEvaluationPrompt(
@@ -172,5 +174,5 @@ Yanıtını YALNIZCA geçerli JSON formatında ver. Başka metin ekleme.`
   const transcriptText = formatTranscriptForPrompt(transcript)
   const userPrompt = `Aşağıdaki koçluk seansı transkriptini değerlendir:\n\n${transcriptText}\n\n---\n\nYanıt formatı:\n${expectedJsonSchema}`
 
-  return { systemPrompt, userPrompt, dimensions, expectedJsonSchema }
+  return { systemPrompt, userPrompt, dimensions, expectedJsonSchema, rubricTemplateId: typed.id }
 }
