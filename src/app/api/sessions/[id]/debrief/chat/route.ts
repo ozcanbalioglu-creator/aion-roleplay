@@ -6,6 +6,8 @@ import { buildDebriefSystemPrompt } from '@/lib/session/debrief-prompt.builder'
 import { encrypt, decrypt } from '@/lib/encryption'
 
 const DEBRIEF_END_MARKER = '[DEBRIEF_END]'
+// En az 6 mesaj (3 tur: kullanıcı+koç x3) olmadan debrief bitmez.
+const DEBRIEF_END_MIN_MESSAGES = 6
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: sessionId } = await params
@@ -101,7 +103,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           }
         }
 
-        debriefEnded = fullResponse.includes(DEBRIEF_END_MARKER)
+        const markerPresent = fullResponse.includes(DEBRIEF_END_MARKER)
+        if (markerPresent) {
+          const { count } = await serviceSupabase
+            .from('debrief_messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('session_id', sessionId)
+          if ((count ?? 0) < DEBRIEF_END_MIN_MESSAGES) {
+            console.log(`[debrief/chat] DEBRIEF_END guardrail: msgCount=${count} < ${DEBRIEF_END_MIN_MESSAGES}, marker ignored`)
+          } else {
+            debriefEnded = true
+          }
+        }
 
         const cleanResponse = fullResponse.replace(DEBRIEF_END_MARKER, '').trim()
 

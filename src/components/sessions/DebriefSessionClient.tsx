@@ -39,6 +39,7 @@ export function DebriefSessionClient({
   const router = useRouter()
   const abortRef = useRef<AbortController | null>(null)
   const debriefStartedRef = useRef(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const {
     messages,
@@ -215,25 +216,7 @@ export function DebriefSessionClient({
     isOutputPlaying: isPlaying,
   })
 
-  // Mount: store reset + auto-start. Aktif seans → Seansı Bitir → debrief geçişi soft nav,
-  // gesture chain genelde korunur. Eğer audio.play() reddedilirse fallback button gösterilir.
-  useEffect(() => {
-    reset()
-    resetVoice()
-
-    // Race koşullarını engelle (StrictMode'da useEffect 2x çalışır)
-    if (debriefStartedRef.current) return
-
-    handleStartDebrief().catch((err) => {
-      console.warn('[DebriefSessionClient] auto-start failed, manual fallback:', err)
-      setNeedsManualStart(true)
-      setHasStarted(false)
-      debriefStartedRef.current = false
-      setDebriefStarting(false)
-    })
-  }, [sessionId]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Kullanıcı butona basar → audio unlock + debrief başlat. Bu user-gesture, autoplay'i açar.
+  // Debrief başlatma — hem auto-start hem manuel buton kullanır
   const handleStartDebrief = async () => {
     if (debriefStartedRef.current || debriefStarting) return
     debriefStartedRef.current = true
@@ -246,10 +229,6 @@ export function DebriefSessionClient({
     setIsActive(true)
     setTurn('processing')
 
-    // PARALELLEŞTİRME (debrief gecikmesini ~500-1000ms azaltır):
-    // - getUserMedia: ilk mic izni veya cached permission resolve süresi (~200-700ms)
-    // - sendToDebrief: chat API ~2-3sn LLM yanıtı
-    // İkisi bağımsız; aynı anda başlat, ikisi de bittiğinde devam et.
     const initMessage = `${DEBRIEF_INIT_PREFIX}Debrief seansını başlat. Sistem promptundaki AÇILIŞ kuralına göre önce kullanıcıyı sıcak bir karşılama ile rahatlat, değerlendirme analizinin hazırlanmakta olduğunu belirt, sonra ilk soruyu sor (genel izlenim).`
 
     const micPromise = navigator.mediaDevices
@@ -278,6 +257,23 @@ export function DebriefSessionClient({
     setDebriefStarting(false)
   }
 
+  // Mount: store reset + auto-start.
+  useEffect(() => {
+    reset()
+    resetVoice()
+
+    // Race koşullarını engelle (StrictMode'da useEffect 2x çalışır)
+    if (debriefStartedRef.current) return
+
+    handleStartDebrief().catch((err) => {
+      console.warn('[DebriefSessionClient] auto-start failed, manual fallback:', err)
+      setNeedsManualStart(true)
+      setHasStarted(false)
+      debriefStartedRef.current = false
+      setDebriefStarting(false)
+    })
+  }, [sessionId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Debrief bittiğinde
   useEffect(() => {
     if (!debriefEnded) return
@@ -304,6 +300,13 @@ export function DebriefSessionClient({
 
     finish()
   }, [debriefEnded, sessionId, router, stopVAD, stopPlayback, setIsActive, setTurn])
+
+  // Mesaj gelince otomatik aşağı kaydır
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [messages])
 
   // Değerlendirme hazır olana kadar poll
   useEffect(() => {
@@ -434,15 +437,66 @@ export function DebriefSessionClient({
         </button>
       </div>
 
-      {/* Ana alan */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-8 px-4">
-        <div className="text-center space-y-1">
+      {/* Konuşma transkripti - tam metin, kaydırılabilir */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
+      >
+        {messages
+          .filter((m) => m.content || m.isStreaming)
+          .map((msg) => (
+            <div
+              key={msg.id}
+              className={cn(
+                'flex flex-col max-w-[80%]',
+                msg.role === 'user' ? 'ml-auto items-end' : 'mr-auto items-start'
+              )}
+            >
+              <p className="text-[10px] font-medium text-muted-foreground mb-1">
+                {msg.role === 'user' ? (userName || 'Siz') : 'Debrief Koçu'}
+              </p>
+              <div
+                className={cn(
+                  'px-4 py-2.5 text-sm leading-relaxed',
+                  msg.role === 'user'
+                    ? 'rounded-2xl rounded-br-sm bg-primary/10'
+                    : 'rounded-2xl rounded-bl-sm bg-card border border-border/60'
+                )}
+              >
+                {msg.isStreaming && !msg.content ? (
+                  <span className="flex gap-1 py-0.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" />
+                  </span>
+                ) : (
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                )}
+              </div>
+            </div>
+          ))}
+
+        {debriefEnded && (
+          <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+            <CheckCircle className="h-4 w-4 text-green-500" />
+            Debrief tamamlandı
+          </div>
+        )}
+      </div>
+
+      {/* Alt durum çubuğu */}
+      <div
+        className="flex-shrink-0 border-t px-4 py-3 flex items-center gap-4"
+        style={{ borderColor: 'rgba(157,107,223,0.2)' }}
+      >
+        <VoiceWaveform turn={turn} className="h-8 flex-1" />
+        <div className="text-right shrink-0">
           <p
             className={cn(
-              'text-lg font-medium transition-colors',
+              'text-sm font-medium transition-colors',
               turn === 'recording' && 'text-red-400',
               turn === 'speaking' && 'text-purple-400',
-              turn === 'listening' && 'text-primary animate-pulse',
+              turn === 'listening' && 'text-primary',
               turn === 'processing' && 'text-muted-foreground',
               turn === 'idle' && 'text-foreground',
               turn === 'error' && 'text-destructive',
@@ -451,48 +505,14 @@ export function DebriefSessionClient({
             {TURN_LABELS[turn]}
           </p>
           {currentTranscript && (turn === 'processing' || turn === 'recording') && (
-            <p className="text-sm text-muted-foreground max-w-xs italic line-clamp-2">
+            <p className="text-xs text-muted-foreground italic line-clamp-1 max-w-[200px]">
               &ldquo;{currentTranscript}&rdquo;
             </p>
           )}
-          {errorMessage && <p className="text-sm text-destructive max-w-xs">{errorMessage}</p>}
+          {errorMessage && (
+            <p className="text-xs text-destructive max-w-[200px]">{errorMessage}</p>
+          )}
         </div>
-
-        <VoiceWaveform turn={turn} className="h-10" />
-
-        <p className="text-xs text-muted-foreground">
-          {turn === 'speaking' && 'Sözünü kesmek için konuşmaya başlayın'}
-          {turn === 'listening' && 'Konuşmaya hazırım...'}
-        </p>
-
-        {/* Son 2 mesaj */}
-        {messages.length > 0 && (
-          <div className="w-full max-w-md space-y-2 opacity-60">
-            {messages
-              .filter((m) => m.content && !m.isStreaming)
-              .slice(-2)
-              .map((msg) => (
-                <div
-                  key={msg.id}
-                  className={cn(
-                    'text-xs px-3 py-1.5 rounded-lg max-w-[85%]',
-                    msg.role === 'user'
-                      ? 'ml-auto bg-primary/10 text-right'
-                      : 'mr-auto bg-card border border-border'
-                  )}
-                >
-                  <p className="line-clamp-1">{msg.content}</p>
-                </div>
-              ))}
-          </div>
-        )}
-
-        {debriefEnded && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            Debrief tamamlandı · Rapor hazırlanıyor...
-          </div>
-        )}
       </div>
     </div>
   )

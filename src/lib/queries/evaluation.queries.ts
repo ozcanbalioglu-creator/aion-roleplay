@@ -1,11 +1,13 @@
-import { createServerClient } from '@/lib/supabase/server'
+import { createServerClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth'
 
 export async function getSessionReport(sessionId: string) {
   const currentUser = await getCurrentUser()
   if (!currentUser) return null
 
-  const supabase = await createServerClient()
+  // Service role: RLS nested join sorunlarını bypass eder.
+  // Güvenlik: user_id filtresi .eq() ile hâlâ uygulanıyor.
+  const supabase = await createServiceRoleClient()
 
   const { data, error } = await supabase
     .from('sessions')
@@ -23,16 +25,15 @@ export async function getSessionReport(sessionId: string) {
     `)
     .eq('id', sessionId)
     .eq('user_id', currentUser.id)
-    .single()
+    .maybeSingle()
 
   if (error || !data) {
     console.error('[getSessionReport] query failed', {
       sessionId,
       userId: currentUser.id,
-      errCode: error?.code,
-      errMsg: error?.message,
-      hint: error?.hint,
-      details: error?.details,
+      errCode: error?.code ?? null,
+      errMsg: error?.message ?? null,
+      hint: error?.hint ?? null,
       hasData: !!data,
     })
     return null
