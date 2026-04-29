@@ -33,37 +33,49 @@ export async function buildEvaluationPrompt(
     .eq('id', tenantId)
     .single()
 
+  // Schema notu (migration 005 + 026 + 031): rubric_dimensions kolonları
+  //   name (TEXT), description (TEXT), score_labels (JSONB: {"1":"...","2":"...","3":"...","4":"...","5":"..."})
+  // dimension_name / level_1_desc gibi kolonlar YOK — score_labels'tan parse ediyoruz.
   const templateFilter = tenantRow?.rubric_template_id
     ? supabase
         .from('rubric_templates')
-        .select(`id, name, rubric_dimensions(dimension_code, dimension_name, description, is_required, level_1_desc, level_3_desc, level_5_desc)`)
+        .select(`id, name, rubric_dimensions(dimension_code, name, description, is_required, score_labels)`)
         .eq('id', tenantRow.rubric_template_id)
         .eq('is_active', true)
         .single()
     : supabase
         .from('rubric_templates')
-        .select(`id, name, rubric_dimensions(dimension_code, dimension_name, description, is_required, level_1_desc, level_3_desc, level_5_desc)`)
+        .select(`id, name, rubric_dimensions(dimension_code, name, description, is_required, score_labels)`)
         .eq('is_default', true)
         .eq('is_active', true)
         .single()
 
   const { data: rubricData, error } = await templateFilter
 
-  type RubricRow = { rubric_dimensions: { dimension_code: string; dimension_name: string; description: string; is_required: boolean; level_1_desc: string | null; level_3_desc: string | null; level_5_desc: string | null }[] }
+  type RubricRow = {
+    rubric_dimensions: {
+      dimension_code: string
+      name: string
+      description: string
+      is_required: boolean
+      score_labels: Record<string, string> | null
+    }[]
+  }
   const typed = rubricData as RubricRow | null
 
   if (error || !typed?.rubric_dimensions?.length) {
-    throw new Error('Aktif rubric bulunamadı')
+    console.error('[buildEvaluationPrompt] Rubric fetch failed:', { error, rubricData, tenantId, rubricTemplateId: tenantRow?.rubric_template_id })
+    throw new Error(`Aktif rubric bulunamadı (tenantId=${tenantId}, error=${error?.message ?? 'no rows'})`)
   }
 
   const dimensions: RubricDimensionForEval[] = typed.rubric_dimensions.map((d) => ({
     dimensionCode: d.dimension_code,
-    dimensionName: d.dimension_name,
-    description: d.description,
+    dimensionName: d.name,
+    description: d.description ?? '',
     isRequired: d.is_required,
-    level1Desc: d.level_1_desc ?? 'Yeterli değil',
-    level3Desc: d.level_3_desc ?? 'Orta düzey',
-    level5Desc: d.level_5_desc ?? 'Mükemmel',
+    level1Desc: d.score_labels?.['1'] ?? 'Yeterli değil',
+    level3Desc: d.score_labels?.['3'] ?? 'Orta düzey',
+    level5Desc: d.score_labels?.['5'] ?? 'Mükemmel',
   }))
 
   // Boyut açıklamaları
