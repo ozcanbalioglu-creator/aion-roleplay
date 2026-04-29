@@ -9,12 +9,22 @@ import { encrypt, decrypt } from '@/lib/encryption'
 // naked ifade ("DEBRIEF_END", "DEBRIEF END") — TTS/UI leak'i önlemek için tüm formları yakalar.
 const DEBRIEF_END_BRACKET_REGEX = /\[\s*DEBRIEF[\s_-]?END\s*\]/gi
 const DEBRIEF_END_NAKED_REGEX = /\bDEBRIEF[\s_-]?END\b/gi
+// LLM bazen marker'ı yanlış yazar veya kısaltır: "[]", "[ ]", "[BİTİŞ]", "[SON]", "[end]" gibi.
+// Mesajın SONUNDA ≤30 karakterlik bracket varsa marker olarak kabul edip strip ederiz.
+// Ortadaki bracket'ler korunur (legit kullanım: alıntı, vs).
+const DEBRIEF_END_TRAILING_BRACKET_REGEX = /\s*\[[^\[\]]{0,30}\]\s*$/
 // Stream chunk boundary'sinde marker bölünebileceği için tail buffer:
 // "[DEBRIEF_END]" 13 karakter; bracket+boşluk varyantı 16'ya çıkar; güvenli pay 20 char.
 const MARKER_TAIL_HOLD = 20
 
 function stripDebriefMarkers(text: string): string {
   return text.replace(DEBRIEF_END_BRACKET_REGEX, '').replace(DEBRIEF_END_NAKED_REGEX, '')
+}
+
+// Final flush'ta cümle sonunda kalmış kısa bracket'leri de temizle.
+// LLM "[]" veya "[BİTİŞ]" gibi marker varyantları yazabilir; düzenli regex'imiz yakalamaz.
+function stripTrailingBracketMarker(text: string): string {
+  return text.replace(DEBRIEF_END_TRAILING_BRACKET_REGEX, '').trimEnd()
 }
 
 // En az 6 mesaj (3 tur: kullanıcı+koç x3) olmadan debrief bitmez.
@@ -128,8 +138,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           }
         }
 
-        // Stream bitti — kalan tail'i temizle ve flush et
-        pending = stripDebriefMarkers(pending)
+        // Stream bitti — kalan tail'i hem normal marker hem de "trailing kısa bracket"
+        // (örn. "[]", "[BİTİŞ]", "[end]") strip et, sonra flush et.
+        pending = stripTrailingBracketMarker(stripDebriefMarkers(pending))
         if (pending) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: pending })}\n\n`))
         }
@@ -151,7 +162,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           }
         }
 
-        const cleanResponse = stripDebriefMarkers(fullResponse).trim()
+        const cleanResponse = stripTrailingBracketMarker(stripDebriefMarkers(fullResponse)).trim()
 
         // Koç yanıtını kaydet
         const phase = historyMessages.length < 4 ? 'intro' : debriefEnded ? 'closing' : 'feedback'

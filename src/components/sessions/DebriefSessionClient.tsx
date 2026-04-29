@@ -18,8 +18,14 @@ const DEBRIEF_INIT_PREFIX = '[DEBRIEF_INIT]'
 // UI'a render etmeden önce defansif olarak burada da temizliyoruz.
 const DEBRIEF_END_STRIP_REGEX = /\[\s*DEBRIEF[\s_-]?END\s*\]/gi
 const DEBRIEF_END_NAKED_STRIP_REGEX = /\bDEBRIEF[\s_-]?END\b/gi
+// LLM bazen "[]" veya "[BİTİŞ]" gibi marker varyantları yazar — mesajın sonunda
+// ≤30 char bracket varsa onu da temizle.
+const DEBRIEF_TRAILING_BRACKET_REGEX = /\s*\[[^\[\]]{0,30}\]\s*$/
 function stripDebriefMarker(text: string): string {
-  return text.replace(DEBRIEF_END_STRIP_REGEX, '').replace(DEBRIEF_END_NAKED_STRIP_REGEX, '')
+  return text
+    .replace(DEBRIEF_END_STRIP_REGEX, '')
+    .replace(DEBRIEF_END_NAKED_STRIP_REGEX, '')
+    .replace(DEBRIEF_TRAILING_BRACKET_REGEX, '')
 }
 
 const TURN_LABELS: Record<string, string> = {

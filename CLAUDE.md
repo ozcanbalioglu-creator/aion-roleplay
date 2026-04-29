@@ -4,6 +4,75 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
+## Hata Kaydı — 2026-04-29 İkinci Tur
+
+### EVAL-SCHEMA-MISMATCH-001 — Evaluation Hiç Oluşmuyordu (ÇÖZÜLDÜ ✅)
+
+**Kök neden (3 katmanlı schema-code mismatch):**
+
+1. **`evaluations.rubric_template_id NOT NULL`** — Migration 008'de zorunlu kolon, ama `runEvaluation` insert'inde hiç verilmiyordu. Her insert constraint violation ile silently fail oluyordu. QStash 3 retry da aynı yere düşüyor, `evaluation_failed` upsert bile rubric_template_id istediği için yazılamıyordu. Sonuç: hiç evaluation row yok → `getSessionReport` null dönüyor → "Rapor Hazırlanıyor veya Erişilemiyor" UI.
+
+2. **`dimension_scores` yanlış kolon adları** — Şema: `evaluation_id, dimension_code, score, evidence_quotes, rationale, improvement_tip`. Kod yazıyordu: `session_id (yok), tenant_id (yok), evidence (yanlış ad), feedback (yanlış ad)`. Hem insert hem `getSessionReport` nested join fail oluyordu. PostgREST nested join'inde tek bir kolon eksikse tüm sorgu null döner — bu da NULL UI'ın asıl tetikleyicisiydi.
+
+3. **`rubric_dimensions.dimension_name` yok, `name` var** — Migration 026'da `name` kolonu eklendi ama 5+ yerde hâlâ `dimension_name` kullanılıyordu (`system-prompt.builder`, `dashboard.queries`, `reports.queries`, `report-audio` route, `development-plan/regenerate` route).
+
+**Uygulanan fix'ler:**
+- `buildEvaluationPrompt` artık `rubricTemplateId` döndürüyor; engine insert'ine eklendi + `status: 'completed'` set ediliyor.
+- `dimension_scores` insert artık doğru kolonlar (`evaluation_id, dimension_code, score, evidence_quotes, improvement_tip, rationale`).
+- `getSessionReport` nested join düzeltildi; report page rendering kolonları okuyor.
+- Tüm `dimension_name` referansları `name` olarak değiştirildi.
+- `dashboard.queries` ve `reports.queries`'de `.in('session_id', ...)` yerine iki adımlı join: önce evaluation_id'leri çek, sonra dimension_scores'a bağla.
+
+**Bonus:** runEvaluation'a kapsamlı step-by-step log eklendi (`[runEvaluation] START/session OK/transcript OK/prompt OK/LLM OK/JSON OK/insert OK/DONE`). Vercel function log'larında hangi adımda patladığı tek bakışta görülür.
+
+**Bonus 2:** `usage_metrics` ve `prompt_logs` insert'leri non-fatal try-catch'e alındı. Bu tablolar fail olsa bile evaluation row korunur ve idempotency çalışır.
+
+**Bonus 3:** `runEvaluation` idempotency check `.single()` → `.maybeSingle()` + `status === 'completed'` filter. Yarım kalmış evaluation varsa retry tetiklenebilir.
+
+**İlgili dosyalar:** `src/lib/evaluation/evaluation-prompt.builder.ts`, `src/lib/evaluation/evaluation.engine.ts`, `src/lib/queries/evaluation.queries.ts`, `src/lib/queries/dashboard.queries.ts`, `src/lib/queries/reports.queries.ts`, `src/lib/session/system-prompt.builder.ts`, `src/app/api/sessions/[id]/report-audio/route.ts`, `src/app/api/users/[userId]/development-plan/regenerate/route.ts`, `src/app/(dashboard)/dashboard/sessions/[id]/report/page.tsx`
+
+---
+
+### MARKER-LEAK-DEBRIEF-002 — `[]` ve `[BİTİŞ]` gibi marker varyantları UI'a sızıyor (ÇÖZÜLDÜ ✅)
+
+**Kök neden:** Marker strip regex'leri `[DEBRIEF_END]` ve `DEBRIEF_END` (naked) varyantlarını yakalıyordu ama LLM bazen `[]` (sadece boş bracket), `[BİTİŞ]` (Türkçe çeviri), `[end]` (kısaltma) gibi başka varyantlar üretiyordu. Kullanıcı debrief mesajının sonunda `[]` görmeye başladı.
+
+**Uygulanan fix:** Mesajın **sonunda** ≤30 karakterlik bracket varsa marker olarak kabul edip strip eden defansif regex eklendi: `/\s*\[[^\[\]]{0,30}\]\s*$/`. Hem server final flush'ında hem client tarafında uygulanıyor. Ortadaki bracket'ler korunuyor (legitimate kullanım için).
+
+**İlgili dosyalar:** `src/app/api/sessions/[id]/debrief/chat/route.ts`, `src/components/sessions/DebriefSessionClient.tsx`
+
+---
+
+### UX-DEBRIEF-MONOTONY-001 — Debrief Koçu Hep Aynı Cümlelerle Açıyor (ÇÖZÜLDÜ ✅)
+
+**Kullanıcı geri bildirimi:** "Birkaç seans yapan kişiler hep aynı başlangıç, aynı kalıp cümlelerle karşılaştıkları için sıkılabilirler."
+
+**Kök neden:** `debrief-prompt.builder.ts` çok katı bir açılış formu dayatıyordu — örnek cümle neredeyse harfiyen kullanılıyordu: "Merhaba Özcan, nasılsınız? Seans değerlendirme analiziniz hazırlanırken birkaç soru sormak istiyorum...". Aynı kullanıcı tekrar geldiğinde aynı diyalog tekrarı.
+
+**Uygulanan fix:** Prompt yeniden yazıldı:
+- **5 farklı açılış yaklaşımı:** samimi-dolaysız / kişisel-ilgili / sade-direkt / gözlemci-empatik / meraklı-açık. LLM rastgele birini seçer ve doğal hale getirir.
+- **4 kategoride 3 alternatifli soru havuzu:** duygu/iz, zorlanma/içgörü, bağlantı, ileriye dönük. Her seansda farklı kombinasyon.
+- **4 farklı kapanış varyantı.**
+- "ÇEŞİTLİLİK KURALI" başlığı altında açıkça uyarı: "Aynı kullanıcı tekrar gelirse seçimini değiştir."
+
+**İlgili dosyalar:** `src/lib/session/debrief-prompt.builder.ts`
+
+---
+
+### STT-PHANTOM-DEBRIEF-OBSERVATION-001 — Debrief Halüsinasyonları (RAPOR EDİLDİ, İZLEME)
+
+**Gözlem (2026-04-29):** Kullanıcı debrief sırasında bazen söylemediği bir mesajın transkripte düştüğünü rapor etti. Test seansının ekran görüntüsünde phantom mesaj net görünmedi (kullanıcı kendi mesajıyla AI cevabını karıştırmış olabilir) ama kullanıcı raporu güvenilir.
+
+**Olası nedenler:**
+1. Debrief STT route'u (`/api/sessions/[id]/stt`) zaten phantom filter'a sahip ama Whisper'ın yeni Türkçe phantom örüntüleri çıkıyor olabilir.
+2. Echo: TTS oynarken mic açık, geri kaçan ses Whisper'a gidiyor olabilir.
+
+**Aksiyon:** Yeni phantom örnekleri toplandığında `WHISPER_PHANTOM_PATTERNS`'e eklenecek. Şu an post-launch izleme listesinde — production launch sonrası gerçek kullanıcı verisiyle pattern havuzu genişletilebilir.
+
+**İlgili dosyalar:** `src/app/api/sessions/[id]/stt/route.ts`
+
+---
+
 ## Hata Kaydı — Sesli Seans Katmanı (2026-04-26) — TÜMÜ ÇÖZÜLDÜ
 
 ### VAD-001 — Mikrofon Ses Algılaması (ÇÖZÜLDÜ ✅)
