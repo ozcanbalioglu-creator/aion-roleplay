@@ -139,7 +139,7 @@ export default async function SessionReportPage({ params }: ReportPageProps) {
 
             </>
           ) : (
-            /* Değerlendirme henüz hazır değil - Stitch Stili Yükleme */
+            /* Değerlendirme henüz hazır değil - sayfayı yenile veya manuel tetikle */
             <div className="py-24 flex flex-col items-center justify-center text-center max-w-lg mx-auto">
               <div className="h-24 w-24 rounded-full bg-surface-container-highest/50 flex items-center justify-center mb-8 relative">
                 <Clock className="h-10 w-10 text-on-primary-container animate-spin duration-3000" />
@@ -147,14 +147,17 @@ export default async function SessionReportPage({ params }: ReportPageProps) {
               </div>
               <h2 className="font-headline text-3xl italic mb-4">Değerlendirme Hazırlanıyor</h2>
               <p className="text-on-surface-variant leading-relaxed mb-8">
-                AI değerlendirme motoru seansınızı ICF rubric boyutlarına göre analiz ediyor. &ldquo;No-Line&rdquo; yapısına geçerken sabrınız için teşekkürler. Lütfen birkaç dakika bekleyin.
+                AI değerlendirme motoru seansınızı ICF rubric boyutlarına göre analiz ediyor. Lütfen birkaç dakika bekleyin. Eğer 2 dakikadan fazla beklediyseniz aşağıdaki &ldquo;Değerlendirmeyi Yeniden Tetikle&rdquo; butonuna basın.
               </p>
-              <Button asChild className="rounded-full bg-primary-container text-on-primary hover:bg-on-primary-container transition-colors px-8 py-6 h-auto">
-                <Link href={`/dashboard/sessions/${id}/report`} className="flex items-center gap-2">
-                  <RefreshCw className="h-5 w-5" />
-                  Güncelle Durumu Öğren
-                </Link>
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button asChild variant="outline" className="rounded-full px-6 py-6 h-auto">
+                  <Link href={`/dashboard/sessions/${id}/report`} className="flex items-center gap-2">
+                    <RefreshCw className="h-5 w-5" />
+                    Sayfayı Yenile
+                  </Link>
+                </Button>
+                <RetryEvaluationButton sessionId={id} />
+              </div>
             </div>
           )}
         </div>
