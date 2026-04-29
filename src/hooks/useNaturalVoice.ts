@@ -4,7 +4,7 @@ import { useRef, useCallback, useEffect } from 'react'
 
 const SPEECH_THRESHOLD = 0.014       // normal RMS energy eşiği (0.005'ten yükseltildi — kapı/TV gibi arka plan gürültüsü 0.005-0.012 arasında)
 const SPEECH_THRESHOLD_DUCK = 0.035  // TTS oynarken: hoparlör→mic echo'sunu filtrelemek için yüksek eşik
-const SILENCE_MS = 800               // konuşma sonu için sessizlik süresi
+const SILENCE_MS = 1200              // konuşma sonu için sessizlik süresi (cümleler arası düşünme süresi)
 const MIN_SPEECH_MS = 400            // misfire önleme: minimum konuşma süresi
 const VAD_INTERVAL_MS = 30           // AnalyserNode polling aralığı (ms)
 const FFT_SIZE = 2048

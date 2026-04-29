@@ -156,7 +156,7 @@ export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResu
         .from('sessions')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', params.userId)
-        .eq('status', 'completed')
+        .in('status', ['completed', 'debrief_completed'])
       if ((count ?? 0) >= (criteria.value as number)) earned = true
     } else if (criteria.type === 'persona_difficulty_min') {
       // Kullanıcı bu seansda yeterince zor persona ile çalıştı mı?
@@ -209,7 +209,7 @@ export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResu
       .select('id', { count: 'exact', head: true })
       .eq('user_id', params.userId)
       .eq('scenario_id', params.scenarioId)
-      .eq('status', 'completed')
+      .in('status', ['completed', 'debrief_completed'])
       .neq('id', params.sessionId),
   ])
 

@@ -405,25 +405,31 @@ export function DebriefSessionClient({
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
-      {/* Header */}
+    <div
+      className="flex flex-col h-[calc(100dvh-5rem)] overflow-hidden"
+      style={{
+        background: 'linear-gradient(155deg, #1a1a2e 0%, #0f0e22 55%, #1c003a 100%)',
+      }}
+    >
+      {/* ── ÜST BAR ── */}
       <div
-        className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0"
+        className="flex items-center justify-between px-6 py-3 flex-shrink-0 border-b"
         style={{
-          background: 'linear-gradient(to right, rgba(157,107,223,0.08), transparent)',
+          background: 'rgba(15,14,34,0.55)',
           borderColor: 'rgba(157,107,223,0.2)',
+          backdropFilter: 'blur(8px)',
         }}
       >
         <div className="flex items-center gap-3 min-w-0">
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: 'rgba(157,107,223,0.2)', border: '1px solid rgba(157,107,223,0.3)' }}
+            className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(157,107,223,0.2)', border: '1px solid rgba(157,107,223,0.4)' }}
           >
-            <MessageSquare className="h-4 w-4" style={{ color: '#9d6bdf' }} />
+            <MessageSquare className="h-4 w-4" style={{ color: '#c39bff' }} />
           </div>
           <div className="min-w-0">
-            <p className="font-medium text-sm truncate">Debrief Koçu</p>
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-sm font-medium text-white">Debrief Koçu</p>
+            <p className="text-[11px] text-white/50 truncate">
               {personaName} · {scenarioTitle}
             </p>
           </div>
@@ -432,87 +438,157 @@ export function DebriefSessionClient({
         <button
           onClick={handleSkip}
           disabled={debriefEnded || isSkipping}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1 rounded-md hover:bg-muted disabled:opacity-40"
+          className="text-xs text-white/60 hover:text-white transition-colors px-3 py-1.5 rounded-md hover:bg-white/10 disabled:opacity-40"
         >
           {isSkipping ? 'Atlıyor...' : 'Atla'}
         </button>
       </div>
 
-      {/* Konuşma transkripti - tam metin, kaydırılabilir */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
-      >
-        {messages
-          .filter((m) => m.content || m.isStreaming)
-          .map((msg) => (
+      {/* ── ANA İÇERİK ── 2 kolon */}
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* SOL — Koç sahnesi */}
+        <div
+          className="relative flex flex-col items-center justify-center overflow-hidden"
+          style={{ flex: '0 0 42%' }}
+        >
+          {/* Purple radial glow */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                'radial-gradient(circle at 50% 45%, rgba(157,107,223,0.25) 0%, transparent 60%)',
+            }}
+          />
+
+          <div className="relative flex flex-col items-center gap-6 px-6">
+            {/* Büyük avatar — pulsing efekt konuşurken */}
             <div
-              key={msg.id}
               className={cn(
-                'flex flex-col max-w-[80%]',
-                msg.role === 'user' ? 'ml-auto items-end' : 'mr-auto items-start'
+                'relative h-[260px] w-[260px] rounded-full flex items-center justify-center transition-all duration-500',
+                turn === 'speaking' && 'scale-105'
               )}
+              style={{
+                background: 'rgba(157,107,223,0.12)',
+                border: '2px solid rgba(157,107,223,0.4)',
+                boxShadow: turn === 'speaking'
+                  ? '0 0 80px rgba(157,107,223,0.6), 0 0 40px rgba(157,107,223,0.4) inset'
+                  : '0 0 40px rgba(157,107,223,0.3)',
+              }}
             >
-              <p className="text-[10px] font-medium text-muted-foreground mb-1">
-                {msg.role === 'user' ? (userName || 'Siz') : 'Debrief Koçu'}
+              <MessageSquare
+                className="h-24 w-24 transition-all"
+                style={{ color: turn === 'speaking' ? '#e0c4ff' : '#9d6bdf' }}
+              />
+
+              {/* Speaking pulse rings */}
+              {turn === 'speaking' && (
+                <>
+                  <div className="absolute inset-0 rounded-full border-2 border-purple-400/50 animate-ping" />
+                  <div
+                    className="absolute -inset-4 rounded-full border border-purple-400/30 animate-ping"
+                    style={{ animationDelay: '500ms' }}
+                  />
+                </>
+              )}
+            </div>
+
+            {/* Koç adı */}
+            <div className="text-center space-y-1">
+              <p
+                className="text-3xl text-white"
+                style={{ fontFamily: 'var(--font-headline, serif)', fontStyle: 'italic' }}
+              >
+                Debrief Koçu
               </p>
-              <div
+              <p className="text-[11px] uppercase tracking-[0.2em] text-purple-300/70">
+                Geri Bildirim · Yansıma
+              </p>
+            </div>
+
+            {/* Durum göstergesi — büyük ve görünür */}
+            <div className="flex flex-col items-center gap-3 w-full max-w-sm">
+              <VoiceWaveform turn={turn} className="h-10 w-full" />
+              <p
                 className={cn(
-                  'px-4 py-2.5 text-sm leading-relaxed',
-                  msg.role === 'user'
-                    ? 'rounded-2xl rounded-br-sm bg-primary/10'
-                    : 'rounded-2xl rounded-bl-sm bg-card border border-border/60'
+                  'text-base font-medium transition-colors',
+                  turn === 'recording' && 'text-red-300',
+                  turn === 'speaking' && 'text-purple-200',
+                  turn === 'listening' && 'text-purple-300 animate-pulse',
+                  turn === 'processing' && 'text-white/50',
+                  turn === 'idle' && 'text-white/85',
+                  turn === 'error' && 'text-red-300',
                 )}
               >
-                {msg.isStreaming && !msg.content ? (
-                  <span className="flex gap-1 py-0.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" />
-                  </span>
-                ) : (
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                )}
-              </div>
+                {TURN_LABELS[turn]}
+              </p>
+              {currentTranscript && (turn === 'processing' || turn === 'recording') && (
+                <p className="text-xs text-white/40 italic text-center max-w-xs line-clamp-2">
+                  &ldquo;{currentTranscript}&rdquo;
+                </p>
+              )}
+              {errorMessage && (
+                <p className="text-xs text-red-300 text-center max-w-xs">{errorMessage}</p>
+              )}
             </div>
-          ))}
-
-        {debriefEnded && (
-          <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            Debrief tamamlandı
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Alt durum çubuğu */}
-      <div
-        className="flex-shrink-0 border-t px-4 py-3 flex items-center gap-4"
-        style={{ borderColor: 'rgba(157,107,223,0.2)' }}
-      >
-        <VoiceWaveform turn={turn} className="h-8 flex-1" />
-        <div className="text-right shrink-0">
-          <p
-            className={cn(
-              'text-sm font-medium transition-colors',
-              turn === 'recording' && 'text-red-400',
-              turn === 'speaking' && 'text-purple-400',
-              turn === 'listening' && 'text-primary',
-              turn === 'processing' && 'text-muted-foreground',
-              turn === 'idle' && 'text-foreground',
-              turn === 'error' && 'text-destructive',
-            )}
-          >
-            {TURN_LABELS[turn]}
-          </p>
-          {currentTranscript && (turn === 'processing' || turn === 'recording') && (
-            <p className="text-xs text-muted-foreground italic line-clamp-1 max-w-[200px]">
-              &ldquo;{currentTranscript}&rdquo;
+        {/* SAĞ — Transkript */}
+        <div className="flex-1 flex flex-col bg-background overflow-hidden">
+          <div className="px-6 py-3 border-b border-border/40 flex-shrink-0">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">
+              Konuşma Transkripti
             </p>
-          )}
-          {errorMessage && (
-            <p className="text-xs text-destructive max-w-[200px]">{errorMessage}</p>
-          )}
+          </div>
+
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            {messages
+              .filter((m) => m.content || m.isStreaming)
+              .map((msg) => (
+                <div
+                  key={msg.id}
+                  className={cn(
+                    'flex flex-col max-w-[85%]',
+                    msg.role === 'user' ? 'ml-auto items-end' : 'mr-auto items-start'
+                  )}
+                >
+                  <p className="text-[10px] font-medium text-muted-foreground mb-1">
+                    {msg.role === 'user' ? (userName || 'Siz') : 'Debrief Koçu'}
+                  </p>
+                  <div
+                    className={cn(
+                      'px-4 py-2.5 text-sm leading-relaxed',
+                      msg.role === 'user'
+                        ? 'rounded-2xl rounded-br-sm text-white'
+                        : 'rounded-2xl rounded-bl-sm bg-purple-50 dark:bg-purple-950/30 border border-purple-200/50 dark:border-purple-800/30'
+                    )}
+                    style={
+                      msg.role === 'user'
+                        ? { background: 'linear-gradient(135deg, #9d6bdf, #7a4dc4)' }
+                        : undefined
+                    }
+                  >
+                    {msg.isStreaming && !msg.content ? (
+                      <span className="flex gap-1 py-0.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" />
+                      </span>
+                    ) : (
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+            {debriefEnded && (
+              <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                Debrief tamamlandı
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

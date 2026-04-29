@@ -29,15 +29,16 @@ export async function runEvaluation(sessionId: string): Promise<EvaluationResult
     }
   }
 
-  // Seans bilgisini al
+  // Seans bilgisini al — debrief flow'unda status 'debrief_active' veya 'debrief_completed' olur,
+  // legacy 'completed' de kabul edilir.
   const { data: session } = await supabase
     .from('sessions')
-    .select('id, user_id, tenant_id, persona_id, scenario_id, duration_seconds')
+    .select('id, user_id, tenant_id, persona_id, scenario_id, duration_seconds, status')
     .eq('id', sessionId)
-    .eq('status', 'completed')
+    .in('status', ['completed', 'debrief_active', 'debrief_completed'])
     .single()
 
-  if (!session) throw new Error('Tamamlanmış seans bulunamadı')
+  if (!session) throw new Error(`Değerlendirilebilir seans bulunamadı (sessionId=${sessionId})`)
 
   // Transcript
   const transcript = await getDecryptedTranscript(sessionId)
