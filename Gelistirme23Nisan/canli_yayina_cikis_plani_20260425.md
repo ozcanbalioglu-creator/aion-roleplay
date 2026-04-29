@@ -150,21 +150,79 @@ Aşağıdaki kararlar 2026-04-25 tarihli oturumda kesinleşti. **Bunları yenide
 - [ ] Sesli rapor üretimi + dinleme test
 - [ ] Tüm test geçerse → "deployment hazır" işareti
 
-### Gün 5 — 29 Nisan (Production Hazırlığı)
+### Gün 5 — 29 Nisan (Evaluation Mimarisi Onarımı + Rapor Redesign Plan) ⚡ TAMAMLANDI
 
+> **Bugün production hazırlığı yerine gerçek bir evaluation buggy'ı ortaya çıktı**:
+> rapor hiç oluşmuyordu. Üçlü schema-code mismatch tespit edildi ve fix edildi.
+> Production hazırlığı 30 Nisan + 1 Mayıs aralığına kaydı.
+
+#### Bugün Çözülen Kritik Bug'lar
+
+| ID | Sorun | Durum |
+|---|---|---|
+| STT-PHANTOM-004 | "Başka bir videoda görüşünceye dek" YouTube outro phantom | ✅ |
+| DEBRIEF-MARKER-LEAK-002 | `[DEBRIEF_END]` chunk-boundary split + `[]` varyant leak | ✅ |
+| **EVAL-SCHEMA-MISMATCH-001** | **Evaluation hiç oluşmuyordu** (3 katmanlı root cause) | ✅ |
+| GETSESSION-REPORT-NULL | Report sayfası "Rapor Hazırlanıyor veya Erişilemiyor" | ✅ |
+| USAGE-METRICS-COLUMN | `event_type` → `metric_type` (migration 010 alignment) | ✅ |
+| NOTIFICATIONS-PAYLOAD | `payload` kolonu eksik → migration 048 yazıldı | 🟡 SQL editor'da çalıştırılması gerek |
+| UX-DEBRIEF-MONOTONY-001 | Debrief koçu hep aynı açılış cümlesi | ✅ |
+
+**EVAL-SCHEMA-MISMATCH-001 üç katmanlı root cause:**
+1. `evaluations.rubric_template_id NOT NULL` ama insert'te hiç verilmiyordu → her insert PostgreSQL constraint violation ile patlıyordu
+2. `dimension_scores` insert yanlış kolon adlarıyla yazılıyordu (`session_id, tenant_id, evidence, feedback` → DOĞRUSU `evaluation_id, evidence_quotes, improvement_tip, rationale`)
+3. Birçok yerde `rubric_dimensions.dimension_name` kullanılıyordu ama kolon adı `name` (migration 026)
+
+**Bonus:**
+- `runEvaluation`'a step-by-step log eklendi (Vercel logs'ta debug)
+- `getSessionReport` parçalı query'lere refactor edildi (PostgREST nested-join brittleness'a karşı)
+- Manuel retry butonu eklendi ("Yeniden Dene")
+- Debrief koçu prompt'u 5 farklı açılış yaklaşımı + 12 soru havuzu + 4 kapanış varyantı ile çeşitlendirildi
+
+#### Yarın için Açık Konular
+
+- [ ] **Migration 048** Supabase SQL Editor'da çalıştır (`notifications.payload` + enum + reload schema)
+- [ ] **Issue B**: `SessionList.tsx` `status === 'completed'` koşulu → `['completed','debrief_completed','evaluation_failed']` (debrief sonrası rapor linki görünmüyor)
+- [ ] **Issue C**: Başarılarım sayfası boş — `gamification_profiles` row'u oluşmuyor (signup trigger eksik veya seed sorunu)
+- [ ] **Rapor Redesign taslağı onayı**: `docs/RAPOR_REDESIGN_TASLAK.md` (5 katman / 4 pillar / DO-DON'T DO ZORUNLU)
+
+#### Rapor Redesign — Karar Verilen + Bekleyen
+
+**Karar verilenler (Özcan tarafından):**
+- Her rubric için **transcript kesiti + DO + DON'T DO** ZORUNLU
+- Seanslarım'da rapor linki erişilebilir olmalı (Issue B)
+
+**Bekleyen kararlar (`docs/RAPOR_REDESIGN_TASLAK.md` § 7):**
+- 4 pillar gruplaması (ICF) onayı
+- Toplam skor `/40` mu `/100` mü
+- Statü etiket sayısı (5 seviye öneri)
+- Kontrol listesi sabit mi dinamik mi
+- Faz planı (1=schema/prompt, 2=UI render, 3=fix Issue B+C, 4=trend)
+
+### Gün 6 — 30 Nisan (Production Hazırlığı + Rapor Redesign Faz 1-2)
+
+> **Yeni plan:** Önce rapor redesign Faz 1 (schema migration + LLM prompt) + Faz 2 (UI render) yapılacak.
+> Sonra production deployment hazırlığı.
+
+#### Rapor Redesign (önce)
+- [ ] Karar listesi onaylanır (sabah ilk iş)
+- [ ] Faz 1: Migration 049 (`rubric_dimensions.pillar_code` kolonu + ICF backfill) + LLM prompt yeniden yazımı
+- [ ] Faz 2: Rapor sayfası 5 katmanlı yapıya geçiş
+- [ ] Faz 3: Issue B (SessionList rapor linki) + Issue C (achievements diagnose+fix)
+
+#### Production DB Hazırlığı
 - [ ] Production DB'yi sıfırla:
   - Supabase Dashboard → Aion_Mirror → SQL Editor
   - **Tüm tabloları drop** (veya yeni proje aç, daha temiz)
-  - `supabase/migrations/` altındaki tüm SQL'leri sırayla çalıştır (001 → 041)
+  - `supabase/migrations/` altındaki tüm SQL'leri sırayla çalıştır (001 → 049)
 - [ ] Production'da Auth → SMTP (Resend) ayarla
 - [ ] Production'da Storage bucket'ları (`avatars`, `tenants`, `report-audio`) oluştur
-- [ ] Vercel'de project oluştur (varsa, mevcut)
 - [ ] Vercel → Settings → Environment Variables → tüm production env'lerini doldur
 - [ ] `.env.production` lokalde oluştur (gizli — `.gitignore`'da)
 - [ ] QStash'te production receiver URL'ini ayarla
 - [ ] Resend'de production sender domain'i (`mirror.aionmore.com`) doğrula
 
-### Gün 6 — 30 Nisan (Soft Launch)
+### Gün 7 — 1 Mayıs (Soft Launch)
 
 - [ ] Vercel'e production branch push → deploy
 - [ ] Production URL üzerinden kendi hesabınla bir seans yap
