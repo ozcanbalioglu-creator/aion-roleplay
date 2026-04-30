@@ -6,6 +6,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Hata Kaydı — 2026-04-30 (Rapor Mimarisi + Bağlı Düzeltmeler)
 
+> **Bekleyen iş:** PR #1 sonrası test sırasında 9 ek tespit yapıldı (FOUC overlay, "Bu hafta seans yok" yanlış uyarı, persona "İlk Kez" filtresi yanlış sayaç, Dashboard KPI stale, XP→DP terminoloji, Tenant→Kurum UI dönüşümü, Gelişimim sayfası boş, sesli rapor metin gösterimi, AI insights). Detay: [`Gelistirme23Nisan/pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md`](Gelistirme23Nisan/pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md).
+
+### USER-BADGES-MISSING-001 — Rozetler Hiç Verilmiyordu (4 KATMAN, ÇÖZÜLDÜ ✅)
+
+**Bağlam:** Tenant admin Bronz/Gümüş/Altın 3 rozet tanımladı (1/2/3 seans için). Kullanıcı 14 seans tamamladı ama Başarılarım sayfası "0 rozet" gösteriyordu. Vercel logs'a detaylı `awardXPAndBadges` log'u eklendikten sonra **4 ayrı bug** tek tek ortaya çıktı:
+
+1. **`badges.badge_code` kolonu yok** → SELECT 42703 fail → badges null → loop boş → kimseye rozet verilmedi.
+   Migration 015 seed'de `badge_code` kolonu vardı ama 009'da CREATE TABLE'da hiç tanımlanmamıştı. Sadece `code` var.
+   **Fix:** SELECT'ten `badge_code` çıkarıldı, tüm referanslar `badge.code`'a normalize.
+
+2. **`rubric_templates.tenant_id` kolonu yok** → getSessionReport JOIN 42703 fail → rubric metadata null → boyut isimleri görünmüyordu.
+   Template'ler global; tenant assignment `tenants.rubric_template_id` üzerinden yapılır.
+   **Fix:** Önce `tenants.rubric_template_id` çekilir, sonra `rubric_dimensions.template_id` eq filter ile sorgu.
+
+3. **`user_badges.tenant_id` NOT NULL ihlali** → INSERT 23502 fail → algoritmik olarak doğru çalışan kontrol (KAZANILDI log'u atılıyor) ama DB insert hep patlıyordu.
+   **Fix:** Insert payload'una `tenant_id: params.tenantId` eklendi.
+
+4. **`getUserBadges` nested join'inde `badge_code` çağrısı** → PostgREST tüm sorguyu null'a çevirir → AchievementsPage `userBadges=[]` görür → "0 rozet" UI bug.
+   Database'de 3 rozet ZATEN VARDI (3. fix'ten sonra), ama UI sorgusu bunu çekemiyordu.
+   **Fix:** `badges(badge_code, ...)` → `badges(code, ...)` + error log eklendi.
+
+**Bonus:** Awards backfill SQL'i de aynı `tenant_id` NOT NULL hatası yüzünden sessizce 0 row insert ediyordu. SQL'e `u.tenant_id` eklendi. Ayrıca diagnostic SQL'lerde `(criteria->>'value')::int` cast bazı global seed badge'lerinde "4.0" string'i nedeniyle 22P02 hatası verdi — sadece tenant rozet filter'ı ile cast'ten kaçınıldı.
+
+**Mimari kazanım:** Bu seri PostgREST nested join'inin "tek kolon hatası → tüm sorgu null" pattern'ini bir kez daha gösterdi (EVAL-SCHEMA-MISMATCH-001 ile aynı). `awardXPAndBadges`'e detaylı log eklenmesi sayesinde 4 katman bug'ı 30 dakikada teşhis edildi.
+
+**İlgili dosyalar:** `src/lib/evaluation/gamification.service.ts`, `src/lib/queries/gamification.queries.ts`, `src/lib/queries/evaluation.queries.ts`
+
+---
+
 ### REPORT-REDESIGN-001 — 5 Katmanlı Yeni Seans Raporu Mimarisi (UYGULANDI ✅)
 
 **Bağlam:** Eski rapor "ortalama puan + güçlü/gelişim listeleri" tarzındaydı — soyut, aksiyona dökülemez. `docs/AION Mirror Session Report.html` şablonundaki layered + kanıt-odaklı yapıya geçildi (referans: `docs/RAPOR_REDESIGN_TASLAK.md`).

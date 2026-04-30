@@ -1,5 +1,7 @@
 # Post-Launch İyileştirmeler — Yapılacaklar Listesi
 
+> **GÜNCELLEME 2026-04-30:** PR #1 (rapor mimarisi + landing page) Vercel preview'de test edildiğinde 9 yeni iş kalemi tespit edildi. Detaylı liste: [`pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md`](pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md). Bunlardan B1/B2/B4 P0/P1 olarak sprint'e dahil; U1/U2/F1/F2 post-launch'a aktarıldı.
+
 **Hazırlık tarihi:** 2026-04-27
 **Bağlam:** 1 Mayıs 2026 launch sonrası dönem için biriktirilen iyileştirme önerileri.
 **Kapsam:** Pre-launch sprint sırasında tespit edilen ama launch riskini almak istemediğimiz veya post-launch için daha uygun gelişmeler.
