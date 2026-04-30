@@ -13,11 +13,15 @@ const MOBILE_NAV_ITEMS = [
   { label: 'Profil', href: '/dashboard/profile', icon: UserCircle },
 ]
 
+// FOUC fix: `hidden max-md:flex` kombinasyonu, CSS yüklenmeden HTML render edildiği
+// kısa anda nav'ı default-gizli tutar (eski `md:hidden` tek başına default block element
+// olarak nav'ı initial render'da sayfa ortasında flash ediyordu).
+// Refresh sonrası kayboluyordu çünkü cache'li CSS hızlı uygulanıyordu.
 export function MobileNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t hidden max-md:flex">
       <div className="flex items-center justify-around px-2 py-2 safe-area-bottom">
         {MOBILE_NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href ||
