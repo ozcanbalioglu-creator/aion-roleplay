@@ -181,6 +181,16 @@ export function SessionList({ sessions }: SessionListProps) {
                         <ChevronRightIcon className="ml-1 h-3 w-3" />
                       </Link>
                     </Button>
+                  ) : session.status === 'debrief_active' ? (
+                    /* Debrief yarıda kalmış — kullanıcı seansa dönerse page.tsx
+                       DebriefSessionClient'a yönlendirir (page.tsx:53) */
+                    <Button asChild variant="ghost" size="sm" className="hover:bg-primary/10 text-primary">
+                      <Link href={`/dashboard/sessions/${session.id}`}>
+                        <PlayIcon className="mr-1.5 h-3.5 w-3.5" />
+                        Geri Bildirime Dön
+                        <ChevronRightIcon className="ml-1 h-3 w-3" />
+                      </Link>
+                    </Button>
                   ) : (
                     <span className="text-muted-foreground text-xs italic opacity-50">-</span>
                   )}
