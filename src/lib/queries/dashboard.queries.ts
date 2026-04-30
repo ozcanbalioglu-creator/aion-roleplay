@@ -31,7 +31,7 @@ export async function getDashboardStats(period: DashboardPeriod = 'all') {
       evaluations(overall_score)
     `)
     .eq('user_id', currentUser.id)
-    .eq('status', 'completed')
+    .in('status', ['completed', 'debrief_completed'])
 
   if (since) query = query.gte('completed_at', since)
 
@@ -56,7 +56,7 @@ export async function getDashboardStats(period: DashboardPeriod = 'all') {
     .from('sessions')
     .select('status', { count: 'exact', head: true })
     .eq('user_id', currentUser.id)
-    .in('status', ['completed', 'cancelled', 'dropped'])
+    .in('status', ['completed', 'debrief_completed', 'cancelled', 'dropped'])
 
   if (since) totalQuery = totalQuery.gte('created_at', since)
   const { count: totalAttempts } = await totalQuery
@@ -90,7 +90,7 @@ export async function getScoreTrend(period: DashboardPeriod = 'all') {
       evaluations(overall_score)
     `)
     .eq('user_id', currentUser.id)
-    .eq('status', 'completed')
+    .in('status', ['completed', 'debrief_completed'])
     .order('completed_at', { ascending: true })
     .limit(15)
 
@@ -122,7 +122,7 @@ export async function getDimensionAverages(period: DashboardPeriod = 'all') {
     .from('sessions')
     .select('id')
     .eq('user_id', currentUser.id)
-    .eq('status', 'completed')
+    .in('status', ['completed', 'debrief_completed'])
 
   if (since) sessionQuery = sessionQuery.gte('completed_at', since)
   const { data: sessions } = await sessionQuery
@@ -186,7 +186,7 @@ export async function getPersonaScoreComparison(period: DashboardPeriod = 'all')
       evaluations(overall_score)
     `)
     .eq('user_id', currentUser.id)
-    .eq('status', 'completed')
+    .in('status', ['completed', 'debrief_completed'])
     .limit(100)
 
   if (since) query = query.gte('completed_at', since)
@@ -235,7 +235,7 @@ export async function getRecentSessions(limit = 5) {
       evaluations(overall_score)
     `)
     .eq('user_id', currentUser.id)
-    .eq('status', 'completed')
+    .in('status', ['completed', 'debrief_completed'])
     .order('completed_at', { ascending: false })
     .limit(limit)
 
@@ -275,7 +275,7 @@ async function getDimensionAveragesForRange(userId: string, from: string, to: st
     .from('sessions')
     .select('id')
     .eq('user_id', userId)
-    .eq('status', 'completed')
+    .in('status', ['completed', 'debrief_completed'])
     .gte('completed_at', from)
     .lte('completed_at', to)
 
