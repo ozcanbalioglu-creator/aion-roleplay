@@ -82,28 +82,43 @@ export async function getSessionReport(sessionId: string) {
     if (dimErr) {
       console.error('[getSessionReport] dimension_scores err:', dimErr)
     } else {
-      // Rubric metadata: tenant_id zorunlu — boyut adı, açıklaması, sort, is_required
+      // Rubric metadata — boyut adı, açıklaması, sort, is_required
+      // NOT: rubric_templates.tenant_id YOK — template'ler global, tenant assignment
+      // tenants.rubric_template_id üzerinden yapılır. Bu yüzden tenant'ın atanmış
+      // template'ini ÖNCE çekip rubric_dimensions'ı template_id ile filtreliyoruz.
       const codes = (dimRows ?? []).map((r) => r.dimension_code)
       const metaByCode: Record<string, { name: string | null; description: string | null; is_required: boolean; sort_order: number }> = {}
 
       if (codes.length > 0) {
-        const { data: metaRows, error: metaErr } = await supabase
+        // Tenant'ın atanmış template'ini çek
+        const { data: tenantRow } = await supabase
+          .from('tenants')
+          .select('rubric_template_id')
+          .eq('id', currentUser.tenant_id)
+          .maybeSingle()
+
+        const templateId = tenantRow?.rubric_template_id ?? null
+
+        // rubric_dimensions sorgusu — template_id varsa ona göre filter,
+        // yoksa tüm eşleşen dimension_code'ları al (fallback)
+        let metaQuery = supabase
           .from('rubric_dimensions')
-          .select('dimension_code, name, description, is_required, sort_order, template_id, rubric_templates!inner(tenant_id, is_active)')
+          .select('dimension_code, name, description, is_required, sort_order, template_id')
           .in('dimension_code', codes)
+          .eq('is_active', true)
+
+        if (templateId) {
+          metaQuery = metaQuery.eq('template_id', templateId)
+        }
+
+        const { data: metaRows, error: metaErr } = await metaQuery
 
         if (metaErr) {
           console.error('[getSessionReport] rubric_dimensions err:', metaErr)
         } else {
-          // Aynı kod birden fazla template'de olabilir; tenant_id eşleşeni veya global'i tercih et
-          const userTenantId = currentUser.tenant_id
+          // İlk eşleşeni al (template_id filter aktifse zaten tek satır gelir)
           for (const row of metaRows ?? []) {
-            const tplTenant = (row as { rubric_templates?: { tenant_id?: string | null } | null }).rubric_templates?.tenant_id ?? null
-            const isOwn = tplTenant === userTenantId
-            const isGlobal = tplTenant === null
-            const existing = metaByCode[row.dimension_code]
-            // Önce kendi tenant'ı, sonra global, sonra ilk eşleşen
-            if (!existing || isOwn || (!existing && isGlobal)) {
+            if (!metaByCode[row.dimension_code]) {
               metaByCode[row.dimension_code] = {
                 name: row.name,
                 description: row.description,

@@ -154,7 +154,7 @@ export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResu
 
   const { data: badges, error: badgesQueryErr } = await supabase
     .from('badges')
-    .select('id, code, badge_code, name, criteria, xp_reward, tenant_id')
+    .select('id, code, name, criteria, xp_reward, tenant_id')
     .eq('is_active', true)
     .or(`tenant_id.eq.${params.tenantId},tenant_id.is.null`)
 
@@ -240,11 +240,11 @@ export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResu
           session_id: params.sessionId,
           points: badge.xp_reward,
           transaction_type: 'badge_earned',
-          description: `Rozet kazanıldı: ${badge.name ?? badge.code ?? badge.badge_code}`,
+          description: `Rozet kazanıldı: ${badge.name ?? badge.code}`,
         })
       }
 
-      badgesEarned.push(badge.code ?? badge.badge_code)
+      badgesEarned.push(badge.code)
     }
   }
 
@@ -253,7 +253,7 @@ export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResu
   )
 
   for (const badgeCode of badgesEarned) {
-    const earnedBadge = (badges as any[])?.find((b: any) => b.badge_code === badgeCode)
+    const earnedBadge = (badges as any[])?.find((b: any) => b.code === badgeCode)
     if (earnedBadge) {
       await notifyBadgeEarned(params.userId, params.tenantId, badgeCode, earnedBadge.name ?? badgeCode)
     }
