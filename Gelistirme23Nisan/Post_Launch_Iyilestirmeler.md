@@ -492,6 +492,66 @@ Pricing değişimleri için `pricing_version` damgası — geriye dönük raporl
 
 ---
 
+### P3-Worktree-001 — Claude Worktree Temizliği ve Build Çalışırlığı
+
+**Bağlam:** Claude Code her oturumda `.claude/worktrees/<isim>` altında izole bir git worktree açar. Birikmiş worktree'ler diskte yer kaplar ama daha önemlisi: hiçbirinde `node_modules` yok. Bu yüzden worktree dizininde `npm run build` veya `npm run dev` çalıştırılınca Turbopack `next/package.json`'ı çözemiyor, hata veriyor:
+
+```
+Error: Next.js inferred your workspace root, but it may not be correct.
+We couldn't find the Next.js package (next/package.json) from the project directory:
+.../.claude/worktrees/<isim>/src/app
+```
+
+**Production etkisi:** SIFIR. Vercel CI fresh checkout + `npm install` yapar, GitHub'a push edilen branch'in worktree mantığı yoktur. Hata sadece **lokal worktree'de manuel build** çalıştırıldığında görünür.
+
+**Mevcut worktree envanteri (2026-04-30):**
+```
+elastic-ellis-01affa            AKTİF — bu sprint'in commit'leri (caa3dd8)
+agitated-kapitsa-bd755e         başka oturum, commit'leri olabilir
+zealous-taussig-f8a0cf          başka oturum, commit'leri olabilir
+flamboyant-tereshkova-2a81c9    BOŞ — main ile aynı commit (90d6b3a)
+goofy-morse-93558a              BOŞ — main ile aynı commit (90d6b3a)
+```
+
+**Aksiyon (sırayla):**
+
+1. **Boş worktree'leri sil** (5 dk, sıfır risk):
+   ```bash
+   git worktree remove .claude/worktrees/flamboyant-tereshkova-2a81c9
+   git worktree remove .claude/worktrees/goofy-morse-93558a
+   ```
+
+2. **Aktif worktree'lerin durumunu netleştir** (10 dk):
+   - `agitated-kapitsa-bd755e` ve `zealous-taussig-f8a0cf`'da hangi branch var, merge edildi mi kontrol et
+   - Merge edildiyse worktree + branch'i sil; edilmediyse PR aç veya pas geç
+
+3. **Symlink ile worktree'lerde build aktive et** (opsiyonel, 1 dk):
+   ```bash
+   for d in .claude/worktrees/*/; do
+     [ ! -e "$d/node_modules" ] && ln -s ../../../node_modules "$d/node_modules"
+   done
+   ```
+   Veya `.git/hooks/post-checkout` ile otomatik:
+   ```bash
+   #!/bin/sh
+   [ ! -e node_modules ] && [ -d ../../../node_modules ] && ln -s ../../../node_modules node_modules
+   ```
+
+4. **Karar: Claude Code worktree davranışı** (R&D):
+   - Worktree akışı çoklu Claude oturumu için faydalı (paralel çalışma + branch izolasyonu)
+   - Tek oturum çalışıyorsan ana dizinde direkt çalışmak da mümkün — Claude settings'te kapatılabilir mi araştırılmalı
+
+**Acceptance:**
+- Worktree'lerde `npm run build` ve `npm run dev` çalışır hale gelir VEYA
+- Worktree akışı kapatılır + ana dizinde çalışılır
+- Boş worktree'ler temizlenir (disk + zihinsel yük)
+
+**Tahmini süre:** 30 dk (boş worktree silme + symlink). 2 saat (aktif worktree audit + Claude settings araştırması).
+
+**Risk:** Aktif worktree'lerde merge edilmemiş commit'ler varsa veri kaybı. Önce `git worktree list -v` ile commit hash'leri kontrol et.
+
+---
+
 ## 🔵 R&D — Karar Bekleyen
 
 ### R&D-001 — OpenAI Realtime API Geçişi
