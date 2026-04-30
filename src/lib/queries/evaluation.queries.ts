@@ -59,14 +59,19 @@ export async function getSessionReport(sessionId: string) {
 
   console.log(`[getSessionReport] sessionId=${sessionId} hasEval=${!!evaluationRes.data}`)
 
-  // 5. Dimension scores (evaluation varsa)
-  let dimensionScores: Array<{
+  // 5. Dimension scores (evaluation varsa) + rubric metadata
+  type DimensionScoreRow = {
     dimension_code: string
     score: number
     evidence_quotes: string[] | null
     improvement_tip: string | null
     rationale: string | null
-  }> = []
+    name: string | null
+    description: string | null
+    is_required: boolean
+    sort_order: number
+  }
+  let dimensionScores: DimensionScoreRow[] = []
 
   if (evaluationRes.data?.id) {
     const { data: dimRows, error: dimErr } = await supabase
@@ -77,7 +82,50 @@ export async function getSessionReport(sessionId: string) {
     if (dimErr) {
       console.error('[getSessionReport] dimension_scores err:', dimErr)
     } else {
-      dimensionScores = (dimRows ?? []) as typeof dimensionScores
+      // Rubric metadata: tenant_id zorunlu — boyut adı, açıklaması, sort, is_required
+      const codes = (dimRows ?? []).map((r) => r.dimension_code)
+      const metaByCode: Record<string, { name: string | null; description: string | null; is_required: boolean; sort_order: number }> = {}
+
+      if (codes.length > 0) {
+        const { data: metaRows, error: metaErr } = await supabase
+          .from('rubric_dimensions')
+          .select('dimension_code, name, description, is_required, sort_order, template_id, rubric_templates!inner(tenant_id, is_active)')
+          .in('dimension_code', codes)
+
+        if (metaErr) {
+          console.error('[getSessionReport] rubric_dimensions err:', metaErr)
+        } else {
+          // Aynı kod birden fazla template'de olabilir; tenant_id eşleşeni veya global'i tercih et
+          const userTenantId = currentUser.tenant_id
+          for (const row of metaRows ?? []) {
+            const tplTenant = (row as { rubric_templates?: { tenant_id?: string | null } | null }).rubric_templates?.tenant_id ?? null
+            const isOwn = tplTenant === userTenantId
+            const isGlobal = tplTenant === null
+            const existing = metaByCode[row.dimension_code]
+            // Önce kendi tenant'ı, sonra global, sonra ilk eşleşen
+            if (!existing || isOwn || (!existing && isGlobal)) {
+              metaByCode[row.dimension_code] = {
+                name: row.name,
+                description: row.description,
+                is_required: !!row.is_required,
+                sort_order: row.sort_order ?? 0,
+              }
+            }
+          }
+        }
+      }
+
+      dimensionScores = (dimRows ?? []).map((r) => ({
+        dimension_code: r.dimension_code,
+        score: r.score,
+        evidence_quotes: r.evidence_quotes,
+        improvement_tip: r.improvement_tip,
+        rationale: r.rationale,
+        name: metaByCode[r.dimension_code]?.name ?? null,
+        description: metaByCode[r.dimension_code]?.description ?? null,
+        is_required: metaByCode[r.dimension_code]?.is_required ?? false,
+        sort_order: metaByCode[r.dimension_code]?.sort_order ?? 99,
+      }))
     }
   }
 
