@@ -104,12 +104,17 @@ export async function runEvaluation(sessionId: string): Promise<EvaluationResult
   console.log(`[runEvaluation] LLM tamam — ${latencyMs}ms, ${rawJson.length} char, tokens prompt=${response.usage?.prompt_tokens}, completion=${response.usage?.completion_tokens}`)
 
   // Parse
+  // Şemada: improvement_tip + rationale AYRI alanlar (önceki feedback tek alanı kaldırıldı).
+  // Geriye dönük uyumluluk: eski log'larda "feedback" varsa onu rationale'e fallback yap.
   let parsed: {
     dimensions: Array<{
       dimension_code: string
       score: number
       evidence: string[]
-      feedback: string
+      improvement_tip?: string
+      rationale?: string
+      // Eski şemadan gelirse (geçiş süresi):
+      feedback?: string
     }>
     overall_score: number
     strengths: string[]
@@ -164,17 +169,32 @@ export async function runEvaluation(sessionId: string): Promise<EvaluationResult
 
   // Dimension scores yaz
   // Şema (migration 008): evaluation_id, dimension_code, score, evidence_quotes,
-  // rationale, improvement_tip — session_id ve tenant_id YOK; evidence/feedback yanlış adlar.
-  // Eski koddaki insert sessizce fail ediyordu; rapor boyut analizi hep boş geliyordu.
-  type ParsedDimension = { dimension_code: string; score: number; evidence: string[]; feedback: string }
-  const dimensionInserts = (parsed.dimensions ?? []).map((d: ParsedDimension) => ({
-    evaluation_id: evaluation.id,
-    dimension_code: d.dimension_code,
-    score: Math.min(5, Math.max(1, Number(d.score) || 3)),
-    evidence_quotes: d.evidence ?? [],
-    improvement_tip: d.feedback ?? '',
-    rationale: d.feedback ?? '',
-  }))
+  // rationale, improvement_tip.
+  // improvement_tip ve rationale AYRI alanlar — prompt schema'sında ayrılığı zorunlu kıldık.
+  // Geriye dönük uyumluluk: eski LLM yanıtında sadece `feedback` varsa onu rationale'e fallback,
+  // improvement_tip boş kalsın (eski raporlarda zaten kopyaydı).
+  type ParsedDimension = {
+    dimension_code: string
+    score: number
+    evidence: string[]
+    improvement_tip?: string
+    rationale?: string
+    feedback?: string
+  }
+  const dimensionInserts = (parsed.dimensions ?? []).map((d: ParsedDimension) => {
+    const tip = (d.improvement_tip ?? '').trim()
+    const reason = (d.rationale ?? '').trim()
+    // Geriye dönük: yeni alanlar boşsa eski feedback'i rationale'e ata.
+    const fallbackReason = !tip && !reason ? (d.feedback ?? '').trim() : reason
+    return {
+      evaluation_id: evaluation.id,
+      dimension_code: d.dimension_code,
+      score: Math.min(5, Math.max(1, Number(d.score) || 3)),
+      evidence_quotes: d.evidence ?? [],
+      improvement_tip: tip,
+      rationale: fallbackReason,
+    }
+  })
 
   if (dimensionInserts.length > 0) {
     const { error: dimError } = await supabase
