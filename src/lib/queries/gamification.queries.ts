@@ -70,16 +70,22 @@ export async function getUserBadges(limit = 50) {
 
   const supabase = await createServerClient()
 
-  const { data } = await supabase
+  // Nested join'de YANLIŞ kolon adı (badge_code) → PostgREST tüm sorguyu null'a
+  // çevirir → AchievementsPage userBadges=[] görür → "0 rozet" UI bug.
+  // Doğrusu: badges.code (migration 009'da bu ad). badge_code kolonu yok.
+  const { data, error } = await supabase
     .from('user_badges')
     .select(`
       id, earned_at,
-      badges(badge_code, name, description, category, icon, xp_reward)
+      badges(code, name, description, category, icon, xp_reward)
     `)
     .eq('user_id', currentUser.id)
     .order('earned_at', { ascending: false })
     .limit(limit)
 
+  if (error) {
+    console.error('[getUserBadges] query err:', error)
+  }
   return (data as any[]) ?? []
 }
 
