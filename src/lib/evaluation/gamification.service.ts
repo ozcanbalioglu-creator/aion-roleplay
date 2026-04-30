@@ -146,56 +146,92 @@ export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResu
   })
 
   // Badge kontrolü
+  // İYİLEŞTİRMELER:
+  //   1. tenant_id filter: kullanıcının kendi tenant'ı + global (tenant_id IS NULL) rozetler
+  //      Önceki kod TÜM aktif rozetleri çekiyordu — cross-tenant rozet sızıntısı riski
+  //   2. Detaylı log: badge sayısı, kontrol sonuçları, insert hataları görünür
   const badgesEarned: string[] = []
 
-  const { data: badges } = await supabase
+  const { data: badges, error: badgesQueryErr } = await supabase
     .from('badges')
-    .select('id, badge_code, name, criteria, xp_reward')
+    .select('id, code, badge_code, name, criteria, xp_reward, tenant_id')
     .eq('is_active', true)
+    .or(`tenant_id.eq.${params.tenantId},tenant_id.is.null`)
 
-  const { data: userBadges } = await supabase
+  if (badgesQueryErr) {
+    console.error('[awardXPAndBadges] badges query FAIL:', badgesQueryErr)
+  }
+  console.log(
+    `[awardXPAndBadges] Badge kontrolü başladı — userId=${params.userId}, tenant=${params.tenantId}, aktif rozet=${badges?.length ?? 0}`,
+  )
+
+  const { data: userBadges, error: userBadgesErr } = await supabase
     .from('user_badges')
     .select('badge_id')
     .eq('user_id', params.userId)
 
+  if (userBadgesErr) {
+    console.error('[awardXPAndBadges] user_badges query FAIL:', userBadgesErr)
+  }
+
   const earnedBadgeIds = new Set((userBadges as any[])?.map((b: any) => b.badge_id) ?? [])
 
   for (const badge of (badges || []) as any[]) {
-    if (earnedBadgeIds.has(badge.id)) continue
+    if (earnedBadgeIds.has(badge.id)) {
+      console.log(`[awardXPAndBadges]   SKIP (zaten kazanılmış): ${badge.name}`)
+      continue
+    }
 
-    const criteria = badge.criteria as Record<string, unknown>
+    const criteria = (badge.criteria as Record<string, unknown>) ?? {}
     let earned = false
+    let detail = ''
 
     if (criteria.type === 'min_score' && params.overallScore >= (criteria.value as number)) {
       earned = true
+      detail = `min_score: ${params.overallScore} >= ${criteria.value}`
     } else if (criteria.type === 'streak' && newStreak >= (criteria.value as number)) {
       earned = true
+      detail = `streak: ${newStreak} >= ${criteria.value}`
     } else if (criteria.type === 'level' && newLevel >= (criteria.value as number)) {
       earned = true
+      detail = `level: ${newLevel} >= ${criteria.value}`
     } else if (criteria.type === 'xp' && newXP >= (criteria.value as number)) {
       earned = true
+      detail = `xp: ${newXP} >= ${criteria.value}`
     } else if (criteria.type === 'session_count') {
       const { count } = await supabase
         .from('sessions')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', params.userId)
         .in('status', ['completed', 'debrief_completed'])
+      detail = `session_count: ${count ?? 0} >= ${criteria.value}`
       if ((count ?? 0) >= (criteria.value as number)) earned = true
     } else if (criteria.type === 'persona_difficulty_min') {
-      // Kullanıcı bu seansda yeterince zor persona ile çalıştı mı?
+      detail = `persona_difficulty: ${personaDifficulty} >= ${criteria.value}`
       if (personaDifficulty >= (criteria.value as number)) earned = true
     } else if (criteria.type === 'scenario_difficulty_min') {
-      // Kullanıcı bu seansda yeterince zor senaryo denedi mi?
+      detail = `scenario_difficulty: ${scenarioDifficulty} >= ${criteria.value}`
       if (scenarioDifficulty >= (criteria.value as number)) earned = true
+    } else {
+      detail = `criteria.type='${criteria.type}' tanımsız veya eksik value`
     }
 
+    console.log(
+      `[awardXPAndBadges]   ${earned ? '✓ KAZANILDI' : '✗ tutmadı'} — ${badge.name} (${detail})`,
+    )
+
     if (earned) {
-      await supabase.from('user_badges').insert({
+      const { error: ubErr } = await supabase.from('user_badges').insert({
         user_id: params.userId,
         badge_id: badge.id,
         earned_at: new Date().toISOString(),
         session_id: params.sessionId,
       })
+
+      if (ubErr) {
+        console.error(`[awardXPAndBadges]   user_badges INSERT FAIL — ${badge.name}:`, ubErr)
+        continue
+      }
 
       if ((badge.xp_reward ?? 0) > 0) {
         await supabase.from('point_transactions').insert({
@@ -204,13 +240,17 @@ export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResu
           session_id: params.sessionId,
           points: badge.xp_reward,
           transaction_type: 'badge_earned',
-          description: `Rozet kazanıldı: ${badge.name ?? badge.badge_code}`,
+          description: `Rozet kazanıldı: ${badge.name ?? badge.code ?? badge.badge_code}`,
         })
       }
 
-      badgesEarned.push(badge.badge_code)
+      badgesEarned.push(badge.code ?? badge.badge_code)
     }
   }
+
+  console.log(
+    `[awardXPAndBadges] Badge kontrolü bitti — yeni kazanılan: ${badgesEarned.length} (${badgesEarned.join(', ')})`,
+  )
 
   for (const badgeCode of badgesEarned) {
     const earnedBadge = (badges as any[])?.find((b: any) => b.badge_code === badgeCode)
