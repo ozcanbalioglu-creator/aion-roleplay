@@ -18,12 +18,17 @@
 
 -- ─── 1. BACKFILL ──────────────────────────────────────────────────
 -- Mevcut tüm kullanıcılar için profile yoksa oluştur.
+-- NOT: tenant_id NULL olan orphan kullanıcılar atlanır — gamification_profiles
+-- tablosunda tenant_id NOT NULL. Orphan kullanıcı varsa staging'de ayrı
+-- temizlik gerekir (ya tenant ata ya sil). Aşağıdaki "DOĞRULAMA SORGULARI"
+-- bölümünde orphan listesi sorgusu var.
 INSERT INTO gamification_profiles (user_id, tenant_id)
 SELECT u.id, u.tenant_id
 FROM users u
-WHERE NOT EXISTS (
-  SELECT 1 FROM gamification_profiles gp WHERE gp.user_id = u.id
-)
+WHERE u.tenant_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM gamification_profiles gp WHERE gp.user_id = u.id
+  )
 ON CONFLICT (user_id) DO NOTHING;
 
 -- ─── 2. TRIGGER FUNCTION ──────────────────────────────────────────
@@ -37,6 +42,14 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+  -- Defensive: tenant_id NULL ise atla (NOT NULL constraint ihlali olmasın).
+  -- users.tenant_id şemada NOT NULL ama auth trigger'da default_tenant
+  -- bulunamazsa NULL gelebiliyor (orphan kullanıcı senaryosu).
+  IF NEW.tenant_id IS NULL THEN
+    RAISE WARNING 'auto_create_gamification_profile: tenant_id NULL — userId=%, gamification_profile atlandı', NEW.id;
+    RETURN NEW;
+  END IF;
+
   INSERT INTO gamification_profiles (user_id, tenant_id)
   VALUES (NEW.id, NEW.tenant_id)
   ON CONFLICT (user_id) DO NOTHING;
@@ -61,12 +74,27 @@ NOTIFY pgrst, 'reload schema';
 -- ─── DOĞRULAMA SORGULARI (manuel çalıştırılır) ────────────────────
 -- Migration uygulamasından sonra Supabase SQL Editor'da:
 --
---   -- Mevcut kullanıcılar için profile oluşturuldu mu?
+--   -- 1. Orphan (tenant_id NULL) kullanıcılar var mı?
+--   --    Bu users backfill'de atlandı, gamification çalışmaz, ayrıca
+--   --    schema açısından da bozuk satırlar (NOT NULL constraint ihlali).
+--   SELECT id, email, full_name, role, tenant_id, is_active, created_at
+--   FROM users
+--   WHERE tenant_id IS NULL;
+--
+--   -- 2. Çözüm A — orphan'ı bir tenant'a ata (uygun tenant_id'yi seç):
+--   --    UPDATE users SET tenant_id = '<tenant-uuid>' WHERE id = '<user-uuid>';
+--
+--   -- 3. Çözüm B — orphan kullanıcıyı tamamen sil (auth.users + cascade):
+--   --    SELECT auth.uid_delete_user('<user-uuid>'::uuid);
+--   --    VEYA Supabase Dashboard → Authentication → Users → ilgili user → Delete
+--
+--   -- 4. Mevcut kullanıcılar için profile oluşturuldu mu?
 --   SELECT
---     (SELECT COUNT(*) FROM users) AS total_users,
+--     (SELECT COUNT(*) FROM users WHERE tenant_id IS NOT NULL) AS total_users,
 --     (SELECT COUNT(*) FROM gamification_profiles) AS total_profiles;
 --   -- İki sayı eşit olmalı.
 --
---   -- Trigger aktif mi?
---   SELECT tgname, tgenabled FROM pg_trigger WHERE tgname = 'trg_auto_create_gamification_profile';
+--   -- 5. Trigger aktif mi?
+--   SELECT tgname, tgenabled FROM pg_trigger
+--   WHERE tgname = 'trg_auto_create_gamification_profile';
 --   -- tgenabled = 'O' (origin = aktif) olmalı.
