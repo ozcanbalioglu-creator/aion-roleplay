@@ -139,7 +139,7 @@ export function SessionList({ sessions }: SessionListProps) {
                       {evaluation.overall_score.toFixed(1)}
                       <span className="text-xs text-muted-foreground font-normal">/5</span>
                     </span>
-                  ) : session.status === 'completed' ? (
+                  ) : ['completed', 'debrief_completed'].includes(session.status) ? (
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Clock className="h-3 w-3 animate-pulse" />
                       Değerlendiriliyor
@@ -164,7 +164,9 @@ export function SessionList({ sessions }: SessionListProps) {
                       : '-'}
                 </TableCell>
                 <TableCell className="text-right">
-                  {session.status === 'completed' ? (
+                  {/* Rapor görüntülenebilir durumlar: completed (legacy), debrief_completed
+                      (yeni akış), evaluation_failed (rapor sayfasında retry butonu var) */}
+                  {['completed', 'debrief_completed', 'evaluation_failed'].includes(session.status) ? (
                     <Button asChild variant="ghost" size="sm" className="hover:bg-amber-500/10 text-amber-500">
                       <Link href={`/dashboard/sessions/${session.id}/report`}>
                         <FileTextIcon className="mr-1.5 h-3.5 w-3.5" />
