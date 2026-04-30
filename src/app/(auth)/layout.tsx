@@ -6,19 +6,19 @@ export default function AuthLayout({
   return (
     <main className="flex min-h-screen bg-background text-on-background overflow-hidden">
       {/* Left Side: Dark Narrative Section */}
-      <section className="hidden lg:flex flex-col justify-between w-1/2 bg-on-background p-16 relative overflow-hidden">
+      <section className="hidden lg:flex flex-col justify-between w-2/3 bg-on-background p-16 relative overflow-hidden">
         {/* Atmospheric Gradient Glow */}
         <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-primary-container opacity-30 blur-[100px]"></div>
-        
+
         {/* Branding */}
         <div className="relative z-10">
           <img src="/aion_more_genis.png" alt="AION Mirror" className="h-20 w-auto" />
         </div>
 
         {/* Narrative Content */}
-        <div className="relative z-10 max-w-lg mt-auto mb-16">
+        <div className="relative z-10 max-w-3xl mt-auto mb-16">
           <h1 className="text-5xl md:text-6xl font-headline text-surface leading-tight">
-            Kendini <span className="italic text-on-primary-container">aynanda</span> gör.<br/>
+            Koçluk bilgilerini <span className="italic text-on-primary-container">simüle</span> et.<br />
             Daha iyi bir koç ol.
           </h1>
           <p className="mt-8 text-lg text-surface/60 font-body font-light leading-relaxed">
@@ -47,16 +47,16 @@ export default function AuthLayout({
 
         {/* Background Texture Image (Subtle) */}
         <div className="absolute inset-0 opacity-10 pointer-events-none mix-blend-overlay">
-          <img 
-            className="w-full h-full object-cover" 
-            alt="Background Texture" 
+          <img
+            className="w-full h-full object-cover"
+            alt="Background Texture"
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuCP-2ja4yMaARHFvWpXSFzVpjlSaMoPmA89oxRUVwNx7rXjW0EloUS-10E9bmQ_v_lt2HMxI3c1etVI9uX_URXWurO3WT1u8CLki3ZkQQIHuY0wGxoqBwdBiDVcWiSoOantB-sLSTBRrSC7PN52wONyffDo4KYZiA1FzE7zRM3lWZch4zor3APdTjjsX801mZygz7UqOOght9woFA-Hl2b09e-xY_pslKmh9B2LWfJg15psRdexnDzcwXRTwWWdVBM8s1PYD6L6Z8UN"
           />
         </div>
       </section>
 
       {/* Right Side: Action Canvas */}
-      <section className="flex flex-col justify-center items-center w-full lg:w-1/2 p-8 md:p-24 bg-surface relative">
+      <section className="flex flex-col justify-center items-center w-full lg:w-1/3 p-8 md:p-24 bg-surface relative">
         {/* Mobile Logo */}
         <div className="lg:hidden absolute top-12 left-1/2 -translate-x-1/2">
           <img src="/aion_more_genis.png" alt="AION Mirror" className="h-16 w-auto" />
