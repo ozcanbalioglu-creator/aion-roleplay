@@ -4,6 +4,93 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
+## Hata Kaydı — 2026-04-30 (Rapor Mimarisi + Bağlı Düzeltmeler)
+
+### REPORT-REDESIGN-001 — 5 Katmanlı Yeni Seans Raporu Mimarisi (UYGULANDI ✅)
+
+**Bağlam:** Eski rapor "ortalama puan + güçlü/gelişim listeleri" tarzındaydı — soyut, aksiyona dökülemez. `docs/AION Mirror Session Report.html` şablonundaki layered + kanıt-odaklı yapıya geçildi (referans: `docs/RAPOR_REDESIGN_TASLAK.md`).
+
+**Yeni mimari — 5 katman:**
+- **L1 Hero** — büyük genel skor (0-5), durum etiketi (5 seviyeli statü), narrative paragraf, meta chip'ler
+- **L2 Radar** — 8 ICF boyutu SVG radar + tıklanabilir legend + en güçlü/zayıf
+- **L3 Dim Cards** — boyut bazlı: skor barı, evidence quote, "Bir Sonraki Seansda Dene" + "Neden Önemli" 2-sütun
+- **L4 Action Panel** — Güçlü Alanlar (≥4) / Gelişim Alanları (<3.5) / Bir Sonraki Odak / Kontrol Listesi (zorunlu boyutlar)
+- **L5 Reflection** — Liderlik İçgörüsü + Trend (son 5 seans delta'sı, 2 kolon)
+
+**Dashboard layout korundu:** Header (`AppHeader`) ve sidebar (`AppSidebar`) hiç dokunulmadı; sadece sayfa gövdesi yeniden yazıldı. Şablonun "sticky top bar"ı atlandı çünkü AppHeader zaten o işi yapıyor.
+
+**İlgili dosyalar:** `src/components/sessions/report/{ReportHero,ReportRadar,DimensionCardList,ActionPanel,ReflectionSection,report-utils,report.module.css}.tsx`, `src/app/(dashboard)/dashboard/sessions/[id]/report/page.tsx`, `src/lib/queries/evaluation.queries.ts` (rubric_dimensions metadata join)
+
+**Veri Modeli Kararı (2026-04-30):** RAPOR_REDESIGN_TASLAK.md'deki "Veri Modeli Etkisi" tespitleri (A: `rubric_dimensions.pillar_code`, B: `dimension_scores` yeterlilik, C: `evaluations` ek kolonlar) denetlendi:
+
+- **A — pillar_code:** Uygulanmadı, gerek yok. Şablonda 4-pillar gruplaması yok, 8 boyut tek seviye liste/radar olarak gösteriliyor. Yeni migration gerekmiyor.
+- **B — dimension_scores:** Doğru, mevcut kolonlar (`dimension_code, score, evidence_quotes, improvement_tip, rationale`) yeterli. EVAL-FIELD-DUPLICATION-001 fix'iyle improvement_tip ve rationale ayrı doluyor.
+- **C — evaluations ek kolonlar:** Uygulanmadı (önerilen yol bu zaten). `status_label`, `next_focus`, `checklist` gibi türevler render time'da hesaplanıyor (`getStatusPill`, `ActionPanel`). Migration azaldı, esnek.
+
+---
+
+### EVAL-FIELD-DUPLICATION-001 — `improvement_tip` ve `rationale` LLM'in Aynı Metni Üretiyordu (ÇÖZÜLDÜ ✅)
+
+**Kök neden:** Önceki evaluation prompt'u her boyut için tek bir `feedback` alanı istiyor, engine bunu **hem `improvement_tip` hem `rationale` kolonuna kopyalıyordu**. Yeni rapor UI'ı bu iki alanı 2 ayrı kart olarak gösterdiği için ("Bir Sonraki Seansda Dene" + "Neden Önemli") aynı metin kullanıcıya iki kez sergileniyordu.
+
+**Uygulanan fix (iki katman):**
+
+1. **`evaluation-prompt.builder.ts`** — JSON şemasında `feedback` kaldırıldı, yerine iki ayrı alan:
+   - `improvement_tip`: imperatif eylem cümlesi ("...şu cümleyle başla", "...sessizliği uzat")
+   - `rationale`: puanın gerekçesi + eylemin neden önemli olduğu
+   Sistem promptu kuralları 3-4'te "KESİNLİKLE birbirinin tekrarı olamaz" yasağı eklendi. Aynı yasak `coaching_note` ↔ `manager_insight` için de var (kural 8-9).
+
+2. **`evaluation.engine.ts`** — `parsed.dimensions[]` type'ı `improvement_tip?` + `rationale?` ayrı alanlar. Insert mapping iki ayrı kolona yazıyor. **Geriye dönük uyumlu:** eski yanıtlarda sadece `feedback` varsa onu `rationale`'a fallback yapıyor (improvement_tip boş kalır), eski seansların raporu kırılmaz.
+
+**İlgili dosyalar:** `src/lib/evaluation/evaluation-prompt.builder.ts`, `src/lib/evaluation/evaluation.engine.ts`
+
+---
+
+### SESSION-LIST-VISIBILITY-001 — `debrief_completed` Seanslarında Rapor Linki Yoktu (ÇÖZÜLDÜ ✅)
+
+**Kök neden:** Yeni debrief akışında seans `'completed'` yerine `'debrief_completed'` durumunda bitiyordu. `SessionList.tsx:167` sadece `status === 'completed'` kontrolü yapıyordu → Rapor linki yeni akış seanslarında gözükmüyordu. Skor sütunundaki "Değerlendiriliyor" yazısı da aynı sorundan etkileniyordu.
+
+Ayrıca `debrief_active` durumu (kullanıcı debrief'i yarıda bıraktıysa) hiç hesaplanmamıştı — aksiyon kolonunda `-` gözüküyordu, kullanıcı seansa dönemiyordu.
+
+**Uygulanan fix:**
+- Aksiyon kolonu: `['completed', 'debrief_completed', 'evaluation_failed']` → "Rapor" linki
+- Aksiyon kolonu: `'debrief_active'` → "Geri Bildirime Dön" → `/dashboard/sessions/[id]` (page.tsx:53 zaten DebriefSessionClient'a yönlendiriyor)
+- Skor kolonu: `['completed', 'debrief_completed']` → "Değerlendiriliyor" mesajı
+
+**İlgili dosyalar:** `src/components/sessions/SessionList.tsx`
+
+---
+
+### GAMIFICATION-PROFILE-MISSING-001 — Başarılarım Sayfası Boş (ÇÖZÜLDÜ ✅)
+
+**Kök neden:** Yeni kullanıcılar için `gamification_profiles` row'u oluşturulmuyordu. Migration zincirinde `users` INSERT'ine bağlı bir trigger yoktu. `awardXPAndBadges` (gamification.service.ts:84) profile yoksa sessizce `xpEarned: 0` döndürüyor → hiç XP yazılmıyor, hiç rozet kontrolü yapılmıyor → Başarılarım sayfası sürekli boş, XP geçmişi boş, rozet sayısı 0.
+
+**Elenen hipotezler:**
+- `badges` tablosu boş mu? — ✅ HAYIR, seed migration 015 + 009'da var
+- RLS policy eksik mi? — ✅ HAYIR, `gamification_own` (user_id = auth.uid()) + `gamification_system_all` aktif
+
+**Uygulanan fix (iki katmanlı):**
+
+1. **Migration 049** (`20260430_049_gamification_profile_auto_create.sql`):
+   - **BACKFILL:** Mevcut kullanıcılar için eksik profile'ları toplu oluştur (`WHERE tenant_id IS NOT NULL` — orphan'lar atlanır)
+   - **TRIGGER:** `AFTER INSERT ON users → auto_create_gamification_profile()` — yeni kullanıcı oluşturulunca otomatik profile insert
+   - `SECURITY DEFINER` + `ON CONFLICT DO NOTHING` — idempotent, güvenli
+   - `RAISE WARNING` ile NULL tenant_id durumu loglanır
+   - Doğrulama sorguları yorum bloğunda
+
+2. **Kod savunma katmanı** (`gamification.service.ts:84-105`):
+   - Profile yoksa eski sessiz return yerine `INSERT` ile oluşturup devam ediyor
+   - Trigger uygulanmamış olsa veya manuel SQL ile kullanıcı eklenmiş olsa bile çalışır
+   - Insert fail olursa graceful fallback (eski davranış korunur, log'a düşer)
+
+**Bonus bulgu:** Migration ilk denemede başarısız oldu çünkü staging DB'sinde `tenant_id` NULL olan orphan bir kullanıcı vardı (auth trigger default tenant bulamamış olabilir). NULL-safe filter eklendi (`WHERE u.tenant_id IS NOT NULL`); orphan user manuel düzeltildi (kullanıcı kararı).
+
+> **Not:** Backfill **mevcut seansları** geri tetiklemez — daha önce yapılmış ama profile olmadığı için XP yazılmamış seanslar için XP retroaktif olarak verilmez. Sadece bundan sonraki seanslar normal davranır.
+
+**İlgili dosyalar:** `supabase/migrations/20260430_049_gamification_profile_auto_create.sql`, `src/lib/evaluation/gamification.service.ts`
+
+---
+
 ## Hata Kaydı — 2026-04-29 İkinci Tur
 
 ### EVAL-SCHEMA-MISMATCH-001 — Evaluation Hiç Oluşmuyordu (ÇÖZÜLDÜ ✅)

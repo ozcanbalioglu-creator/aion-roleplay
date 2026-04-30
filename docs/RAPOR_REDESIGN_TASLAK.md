@@ -278,6 +278,19 @@ parça için (trigger / seed / RLS) ayrı küçük migration.
 
 ## 5. Veri Modeli Etkisi
 
+> **Güncelleme — 2026-04-30:** Aşağıdaki tespitler implementasyon sonrası
+> tekrar denetlendi. Üçü de **uygulanmadı / gereksiz**:
+>
+> - **A (pillar_code):** Pillar gruplaması rapor UI'ında yok (8 boyut tek seviye
+>   liste/radar). Migration gereksiz.
+> - **B (dimension_scores):** Mevcut kolonlar yeterli — `improvement_tip` ve
+>   `rationale` ayrı LLM alanları olarak doluyor (EVAL-FIELD-DUPLICATION-001 fix).
+> - **C (evaluations ek kolonlar):** Önerilen "render time" yolu seçildi.
+>   `status_label`, `next_focus`, `checklist` türevleri `getStatusPill` ve
+>   `ActionPanel` içinde hesaplanıyor.
+>
+> Detay için: `CLAUDE.md → REPORT-REDESIGN-001 → Veri Modeli Kararı`.
+
 Yeni rapor için gereken DB değişiklikleri:
 
 ### A. `rubric_dimensions` tablosuna kolon eklenmeli
