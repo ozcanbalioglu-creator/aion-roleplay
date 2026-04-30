@@ -75,13 +75,36 @@ export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResu
     : ''
 
   // Mevcut profili al
-  const { data: profile } = await supabase
+  let { data: profile } = await supabase
     .from('gamification_profiles')
     .select('xp_points, level, current_streak, weekly_session_count, last_session_date')
     .eq('user_id', params.userId)
     .single()
 
-  if (!profile) return { xpEarned: 0, newLevel: 1, badgesEarned: [] }
+  // Defensive: gamification_profile yoksa oluştur ve devam et.
+  // Migration 049 trigger'ı normalde bunu otomatik yapar; bu fallback
+  // trigger uygulanmadığında veya manuel SQL ile kullanıcı eklendiğinde
+  // çalışır. Önceki davranış sessizce 'xpEarned: 0' döndürüp Başarılarım
+  // sayfasını boş bırakıyordu (B-Achievements bug).
+  if (!profile) {
+    console.warn(
+      `[awardXPAndBadges] gamification_profile bulunamadı, oluşturuluyor — userId=${params.userId}`,
+    )
+    const { data: created, error: createErr } = await supabase
+      .from('gamification_profiles')
+      .insert({
+        user_id: params.userId,
+        tenant_id: params.tenantId,
+      })
+      .select('xp_points, level, current_streak, weekly_session_count, last_session_date')
+      .single()
+
+    if (createErr || !created) {
+      console.error('[awardXPAndBadges] Profile oluşturulamadı:', createErr)
+      return { xpEarned: 0, newLevel: 1, badgesEarned: [] }
+    }
+    profile = created
+  }
 
   const newXP = profile.xp_points + xpEarned
   const newLevel = calculateLevel(newXP)
