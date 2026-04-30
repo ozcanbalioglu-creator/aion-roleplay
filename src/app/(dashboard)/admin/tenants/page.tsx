@@ -15,7 +15,7 @@ export default async function TenantsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Tenant Yönetimi"
+        title="Kurum Yönetimi"
         description="Platform kurumlarını görüntüleyin ve yönetin"
         action={<CreateTenantButton rubricTemplates={rubricTemplates} />}
       />

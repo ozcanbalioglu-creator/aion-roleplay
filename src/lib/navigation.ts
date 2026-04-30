@@ -157,7 +157,7 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
     {
       title: 'Platform Yönetimi',
       items: [
-        { label: 'Tenant Yönetimi', href: '/admin/tenants', icon: Building2 },
+        { label: 'Kurum Yönetimi', href: '/admin/tenants', icon: Building2 },
         { label: 'Prompt Yönetimi', href: '/admin/prompts', icon: FileText },
         { label: 'Rubric Yapılandırması', href: '/admin/rubrics', icon: Shield },
         { label: 'Geri Bildirimler', href: '/admin/feedback', icon: MessageSquare },
@@ -168,7 +168,7 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
     {
       title: 'İçerik Yönetimi',
       items: [
-        { label: 'Persona-Tenant Atama', href: '/admin/personas', icon: UserCircle },
+        { label: 'Persona-Kurum Atama', href: '/admin/personas', icon: UserCircle },
         { label: 'Persona Yönetimi', href: '/tenant/personas', icon: UserCircle },
         { label: 'Senaryolar', href: '/tenant/scenarios', icon: BookOpen },
       ]

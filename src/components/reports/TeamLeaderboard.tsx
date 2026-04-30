@@ -76,7 +76,7 @@ export function TeamLeaderboard({ entries, anonymous = false, sortBy = 'score' }
                   <span className="text-sm font-bold text-amber-400">{entry.avgScore.toFixed(1)}</span>
                 )}
                 {sortBy === 'xp' && (
-                  <span className="text-sm font-bold text-amber-400">{entry.xpPoints} XP</span>
+                  <span className="text-sm font-bold text-amber-400">{entry.xpPoints} DP</span>
                 )}
                 {sortBy === 'sessions' && (
                   <span className="text-sm font-bold text-primary">{entry.sessionCount}</span>

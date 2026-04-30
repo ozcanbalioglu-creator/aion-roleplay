@@ -28,7 +28,7 @@ export default async function TenantAdminDashboard() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Tenant Yönetimi"
+        title="Kurum Yönetimi"
         description="Kurumunuzun kullanıcı ve içerik yönetimi"
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

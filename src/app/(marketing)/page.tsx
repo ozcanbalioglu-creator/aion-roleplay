@@ -100,7 +100,7 @@ const managerBenefits = [
   { icon: '🎙', title: 'Sınırsız Pratik', body: 'Düşen performansla konuşmak korkutucu olabilir. Önce burada beş kez deneyin, gerçek konuşmaya hazır gelin.' },
   { icon: '🪞', title: 'Gerçek Yansıma', body: 'Konuştuktan sonra debrief koçumuz sizinle bir geri bildirim sohbeti yapar. "Nasıl hissettin? Ne öğrendin?" — sıcak ve içten.' },
   { icon: '📈', title: 'Kişisel Gelişim Haritası', body: "5 seans sonra hangi pillar'da ilerlediğinizi, hangisinde tıkandığınızı görürsünüz. 4 pillar grafiği gibi okunabilir." },
-  { icon: '🏅', title: 'Oyunlaştırma', body: 'XP, seviye atlama, rozet koleksiyonu, haftalık görevler. Gelişim yolculuğunu bir oyun gibi takip edin.' },
+  { icon: '🏅', title: 'Oyunlaştırma', body: 'DP, seviye atlama, rozet koleksiyonu, haftalık görevler. Gelişim yolculuğunu bir oyun gibi takip edin.' },
 ]
 
 const levels = [
@@ -123,10 +123,10 @@ const badgeList = [
 ]
 
 const weeklyTasks = [
-  { done: true, text: 'Bir persona ile seans tamamla', xp: '+50 XP' },
-  { done: true, text: "Pillar B'de 4'ün üstünde puan al", xp: '+80 XP' },
-  { done: false, text: '3 farklı persona ile konuş', xp: '+120 XP' },
-  { done: false, text: "Pillar C'yi geç haftadan artır", xp: '+100 XP' },
+  { done: true, text: 'Bir persona ile seans tamamla', xp: '+50 DP' },
+  { done: true, text: "Pillar B'de 4'ün üstünde puan al", xp: '+80 DP' },
+  { done: false, text: '3 farklı persona ile konuş', xp: '+120 DP' },
+  { done: false, text: "Pillar C'yi geç haftadan artır", xp: '+100 DP' },
 ]
 
 const securityItems = [

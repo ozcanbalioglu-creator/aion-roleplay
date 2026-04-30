@@ -127,7 +127,7 @@ export async function updateChallengeProgress(params: UpdateChallengeParams): Pr
           tenantId: params.tenantId,
           type: 'challenge_completed',
           title: 'Görev Tamamlandı! 🎯',
-          body: `"${challenge.title}" görevini tamamladın. +${challenge.xp_reward} XP`,
+          body: `"${challenge.title}" görevini tamamladın. +${challenge.xp_reward} DP`,
           metadata: { challenge_title: challenge.title, xp_earned: challenge.xp_reward },
         })
       }

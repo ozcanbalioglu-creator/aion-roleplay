@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
       tenant_id: uc.tenant_id,
       type: 'challenge_reminder',
       title: 'Görev Hatırlatması ⏰',
-      body: `"${challenge.title}" adlı görevini bitirmene ${daysLabel} kaldı! +${challenge.xp_reward ?? 0} XP kazanmayı kaçırma.`,
+      body: `"${challenge.title}" adlı görevini bitirmene ${daysLabel} kaldı! +${challenge.xp_reward ?? 0} DP kazanmayı kaçırma.`,
       is_read: false,
       metadata: {
         challenge_title: challenge.title,

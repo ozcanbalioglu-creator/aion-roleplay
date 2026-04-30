@@ -137,7 +137,7 @@ export async function createTenantAction(formData: FormData) {
     .select('id')
     .single()
 
-  if (tenantError || !tenantData) return { error: 'Tenant oluşturulamadı: ' + tenantError?.message }
+  if (tenantError || !tenantData) return { error: 'Kurum oluşturulamadı: ' + tenantError?.message }
 
   // 2. Admin kullanıcı oluştur (Auth)
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -173,7 +173,7 @@ export async function createTenantAction(formData: FormData) {
   }
 
   revalidatePath('/admin/tenants')
-  return { success: 'Tenant ve admin başarıyla oluşturuldu.' }
+  return { success: 'Kurum ve yönetici başarıyla oluşturuldu.' }
 }
 
 export async function updateTenantAction(formData: FormData) {
@@ -234,7 +234,7 @@ export async function updateTenantAction(formData: FormData) {
     })
     .eq('id', parsed.data.id)
 
-  if (error) return { error: 'Tenant güncellenemedi: ' + error.message }
+  if (error) return { error: 'Kurum güncellenemedi: ' + error.message }
 
   const adminPassword = parsed.data.admin_password || undefined
   const adminUpdateData = {
@@ -251,7 +251,7 @@ export async function updateTenantAction(formData: FormData) {
 
   if (adminUserId) {
     const { error: authError } = await supabase.auth.admin.updateUserById(adminUserId, adminUpdateData)
-    if (authError) return { error: 'Tenant admin auth bilgileri güncellenemedi: ' + authError.message }
+    if (authError) return { error: 'Kurum yöneticisi giriş bilgileri güncellenemedi: ' + authError.message }
 
     const { error: profileError } = await supabase
       .from('users')
@@ -264,10 +264,10 @@ export async function updateTenantAction(formData: FormData) {
       .eq('id', adminUserId)
       .eq('tenant_id', parsed.data.id)
 
-    if (profileError) return { error: 'Tenant admin profili güncellenemedi: ' + profileError.message }
+    if (profileError) return { error: 'Kurum yöneticisi profili güncellenemedi: ' + profileError.message }
   } else {
     if (!adminPassword) {
-      return { error: 'Bu tenant için admin oluşturmak üzere şifre girmeniz gerekiyor.' }
+      return { error: 'Bu kurum için yönetici oluşturmak üzere şifre girmeniz gerekiyor.' }
     }
 
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -278,7 +278,7 @@ export async function updateTenantAction(formData: FormData) {
     })
 
     if (authError || !authData.user) {
-      return { error: 'Tenant admin oluşturulamadı: ' + authError?.message }
+      return { error: 'Kurum yöneticisi oluşturulamadı: ' + authError?.message }
     }
 
     const { error: profileError } = await supabase
@@ -292,11 +292,11 @@ export async function updateTenantAction(formData: FormData) {
       })
       .eq('id', authData.user.id)
 
-    if (profileError) return { error: 'Tenant admin profili oluşturulamadı: ' + profileError.message }
+    if (profileError) return { error: 'Kurum yöneticisi profili oluşturulamadı: ' + profileError.message }
   }
 
   revalidatePath('/admin/tenants')
-  return { success: 'Tenant bilgileri güncellendi.' }
+  return { success: 'Kurum bilgileri güncellendi.' }
 }
 
 export async function toggleTenantStatusAction(tenantId: string, isActive: boolean) {
@@ -314,7 +314,7 @@ export async function toggleTenantStatusAction(tenantId: string, isActive: boole
   if (error) return { error: 'Durum güncellenemedi.' }
 
   revalidatePath('/admin/tenants')
-  return { success: `Tenant ${!isActive ? 'aktifleştirildi' : 'pasifleştirildi'}.` }
+  return { success: `Kurum ${!isActive ? 'aktifleştirildi' : 'pasifleştirildi'}.` }
 }
 
 const TenantContextSchema = z.object({

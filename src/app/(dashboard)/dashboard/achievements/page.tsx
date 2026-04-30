@@ -37,7 +37,7 @@ export default async function AchievementsPage() {
       </div>
 
       <div className="grid grid-cols-12 gap-8">
-        {/* Sol Kolon: Profil ve XP Geçmişi */}
+        {/* Sol Kolon: Profil ve DP Geçmişi */}
         <div className="col-span-12 lg:col-span-4 space-y-8">
           <Card className="bg-surface-container-low border-border/40 overflow-hidden shadow-sm">
             <CardContent className="pt-8 pb-6">
@@ -62,7 +62,7 @@ export default async function AchievementsPage() {
                 <div className="flex items-center gap-6 pt-2">
                   <div className="flex flex-col items-center">
                     <span className="text-lg font-bold tabular-nums">{profile.xp_points}</span>
-                    <span className="text-[8px] uppercase tracking-widest text-muted-foreground font-bold">Toplam XP</span>
+                    <span className="text-[8px] uppercase tracking-widest text-muted-foreground font-bold">Toplam DP</span>
                   </div>
                   <div className="h-8 w-px bg-border/40" />
                   <div className="flex flex-col items-center">
@@ -90,7 +90,7 @@ export default async function AchievementsPage() {
             <CardHeader className="pb-4">
               <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                 <Zap className="h-3.5 w-3.5 text-amber-500" />
-                XP Akışı
+                DP Akışı
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -108,7 +108,7 @@ export default async function AchievementsPage() {
                 </div>
               ))}
               {xpHistory.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-4 italic opacity-50">Henüz XP hareketi yok.</p>
+                <p className="text-xs text-muted-foreground text-center py-4 italic opacity-50">Henüz DP hareketi yok.</p>
               )}
             </CardContent>
           </Card>
@@ -171,6 +171,11 @@ export default async function AchievementsPage() {
           </Card>
         </div>
       </div>
+
+      {/* DP terminoloji açıklaması — kullanıcı 'XP' kısaltmasını bilmeyebilir */}
+      <p className="text-[11px] text-muted-foreground/60 italic mt-4 text-center">
+        DP = Deneyim Puanı · Tamamladığın seanslara göre kazandığın gelişim puanı
+      </p>
     </div>
   )
 }

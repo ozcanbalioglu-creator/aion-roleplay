@@ -308,7 +308,7 @@ export async function getTeamCSVData(period: ReportPeriod = 'all') {
     'E-posta': m.email,
     'Tamamlanan Seans': m.sessionCount,
     'Ortalama Puan': m.avgScore ?? '',
-    XP: m.xpPoints,
+    DP: m.xpPoints,
     Seviye: m.level,
     'Son Seans': m.lastSessionAt ? new Date(m.lastSessionAt).toLocaleDateString('tr-TR') : '',
   }))

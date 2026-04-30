@@ -21,7 +21,7 @@ export function CreateTenantButton({ rubricTemplates = [] }: Props) {
     <>
       <Button onClick={() => setOpen(true)}>
         <PlusIcon className="mr-2 h-4 w-4" />
-        Yeni Tenant
+        Yeni Kurum
       </Button>
       <CreateTenantDialog open={open} onOpenChange={setOpen} rubricTemplates={rubricTemplates} />
     </>

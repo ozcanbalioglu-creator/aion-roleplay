@@ -21,7 +21,7 @@ export function LevelBar({ level, progressPercent, xpPoints, nextLevelXP, compac
         </span>
         {!compact && (
           <span className="text-[10px] font-medium text-muted-foreground tabular-nums">
-            {xpPoints} / {level >= 5 ? '∞' : nextLevelXP} XP
+            {xpPoints} / {level >= 5 ? '∞' : nextLevelXP} DP
           </span>
         )}
       </div>
@@ -33,8 +33,8 @@ export function LevelBar({ level, progressPercent, xpPoints, nextLevelXP, compac
       </div>
       {compact && (
         <div className="flex justify-between items-center text-[8px] text-muted-foreground/60 uppercase tracking-tighter">
-          <span>{xpPoints} XP</span>
-          <span>{level >= 5 ? 'MAX' : `${nextLevelXP} XP`}</span>
+          <span>{xpPoints} DP</span>
+          <span>{level >= 5 ? 'MAX' : `${nextLevelXP} DP`}</span>
         </div>
       )}
     </div>

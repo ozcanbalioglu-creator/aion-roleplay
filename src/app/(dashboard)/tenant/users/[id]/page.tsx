@@ -129,7 +129,7 @@ export default async function UserDetailPage({ params }: PageProps) {
                   <Star className="h-4 w-4" />
                   <span className="text-xl font-bold">{user.xpPoints ?? 0}</span>
                 </div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">XP</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">DP</p>
               </div>
               <div className="text-center">
                 <div className="flex items-center gap-1 text-green-500">

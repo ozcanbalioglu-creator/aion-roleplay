@@ -80,7 +80,7 @@ export default async function ProgressPage() {
               <Star className="h-4 w-4" />
               <span className="text-2xl font-bold">{gamProfile?.xp_points ?? 0}</span>
             </div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Toplam XP</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Toplam DP</p>
           </CardContent>
         </Card>
         <Card>
@@ -175,6 +175,11 @@ export default async function ProgressPage() {
           <CancellationStatsWidget stats={cancelStats} />
         </div>
       </div>
+
+      {/* DP terminoloji dipnotu */}
+      <p className="text-[11px] text-muted-foreground/60 italic mt-4 text-center">
+        DP = Deneyim Puanı
+      </p>
     </div>
   )
 }
