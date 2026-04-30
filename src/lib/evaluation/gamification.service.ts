@@ -221,8 +221,11 @@ export async function awardXPAndBadges(params: AwardXPParams): Promise<AwardResu
     )
 
     if (earned) {
+      // user_badges.tenant_id NOT NULL — eski kodda eksikti, INSERT 23502 hatası
+      // veriyordu ve sessizce yutuluyordu, hiçbir kullanıcı rozet alamıyordu.
       const { error: ubErr } = await supabase.from('user_badges').insert({
         user_id: params.userId,
+        tenant_id: params.tenantId,
         badge_id: badge.id,
         earned_at: new Date().toISOString(),
         session_id: params.sessionId,
