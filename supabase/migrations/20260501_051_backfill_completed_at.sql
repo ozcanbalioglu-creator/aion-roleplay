@@ -39,7 +39,10 @@ SET completed_at = COALESCE(
   created_at
 )
 WHERE completed_at IS NULL
-  AND status IN ('completed', 'debrief_active', 'debrief_completed', 'failed', 'cancelled', 'evaluation_failed');
+  AND status IN ('completed', 'debrief_active', 'debrief_completed', 'failed', 'cancelled');
+-- NOT: 'evaluation_failed' burada YOK — o değer evaluations.status enum'unda,
+-- sessions.status enum'unda değil. Sessions tablosu için yukarıdaki 5 terminal
+-- durum yeterli.
 
 -- Doğrulama (manuel SQL Editor'da):
 --
