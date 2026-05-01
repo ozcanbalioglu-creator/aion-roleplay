@@ -258,7 +258,7 @@ export function GamificationForms() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="badge-xp">XP Ödülü</Label>
+                <Label htmlFor="badge-xp">DP Ödülü</Label>
                 <Input id="badge-xp" name="xpReward" type="number" defaultValue="100" required />
               </div>
             </div>
@@ -277,7 +277,7 @@ export function GamificationForms() {
                     <SelectItem value="persona_difficulty_min">Zorluklu Persona Seansı (zorluk ≥ N)</SelectItem>
                     <SelectItem value="scenario_difficulty_min">Zorlu Senaryo Seansı (zorluk ≥ N)</SelectItem>
                     <SelectItem value="level">Seviye Erişimi</SelectItem>
-                    <SelectItem value="xp">Toplam XP</SelectItem>
+                    <SelectItem value="xp">Toplam DP</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -394,7 +394,7 @@ export function GamificationForms() {
             })()}
 
             <div className="space-y-2">
-              <Label htmlFor="ch-xp">Ödül (XP)</Label>
+              <Label htmlFor="ch-xp">Ödül (DP)</Label>
               <Input id="ch-xp" name="xpReward" type="number" defaultValue="150" required />
             </div>
 

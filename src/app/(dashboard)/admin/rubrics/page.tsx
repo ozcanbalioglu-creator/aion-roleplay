@@ -39,7 +39,7 @@ export default async function RubricsPage() {
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Template Adı</th>
                 <th className="text-center px-4 py-3 font-medium text-muted-foreground">Aktif Boyut</th>
-                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Kullanan Tenant</th>
+                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Kullanan Kurum</th>
                 <th className="text-center px-4 py-3 font-medium text-muted-foreground">Durum</th>
                 <th className="px-4 py-3" />
               </tr>

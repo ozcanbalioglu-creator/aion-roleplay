@@ -232,6 +232,12 @@ export async function endSessionAction(
       status: 'debrief_active',
       phase: 'closing',
       duration_seconds: durationSeconds,
+      // completed_at burada set ediliyor — kullanıcı debrief'i atlasa bile
+      // Dashboard query'leri (gte('completed_at', since), order, vb.) çalışsın.
+      // Eskiden sadece finishDebriefAction set ediyordu → debrief'i atlayan
+      // kullanıcılarda Dashboard KPI'lar (avgScore, scoreTrend, persona) boş
+      // kalıyordu çünkü tüm query'ler completed_at NULL satırları eliyordu.
+      completed_at: new Date().toISOString(),
     })
     .eq('id', sessionId)
 

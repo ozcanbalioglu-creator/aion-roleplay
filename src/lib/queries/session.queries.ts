@@ -32,11 +32,14 @@ export async function getWeeklySessionStatus(userId: string) {
   monday.setUTCDate(now.getUTCDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
   monday.setUTCHours(0, 0, 0, 0)
 
+  // Yeni debrief akışında seans 'debrief_completed' durumunda biter — eski
+  // 'completed' filter sadece legacy seansları sayıyordu, "Bu hafta seans yok"
+  // yanlış uyarısı buradan kaynaklanıyordu.
   const { count } = await supabase
     .from('sessions')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .eq('status', 'completed')
+    .in('status', ['completed', 'debrief_completed'])
     .gte('completed_at', monday.toISOString())
 
   return { completedThisWeek: count ?? 0, weekStart: monday }

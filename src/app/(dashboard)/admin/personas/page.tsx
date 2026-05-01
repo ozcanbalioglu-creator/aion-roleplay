@@ -22,7 +22,7 @@ export default async function AdminPersonasPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Tenant Persona Yönetimi"
+        title="Kurum Persona Yönetimi"
         description="Şirket seçin, hangi personaların o şirkete atanacağını belirleyin"
       />
       <TenantPersonaAssignment personas={personas.filter((p) => p.is_active)} tenants={tenants.filter(t => t.is_active)} initialMappings={mappings} />

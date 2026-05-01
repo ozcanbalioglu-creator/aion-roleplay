@@ -1,16 +1,21 @@
 import { notFound, redirect } from 'next/navigation'
+import Link from 'next/link'
+import { ArrowLeft, Clock, AlertTriangle, RefreshCw } from 'lucide-react'
 import { getCurrentUser } from '@/lib/auth'
 import { getSessionReport, getPersonaScoreHistory } from '@/lib/queries/evaluation.queries'
-import { getSessionMessageCount } from '@/lib/queries/session.queries'
-import { OverallScoreCard } from '@/components/sessions/report/OverallScoreCard'
-import { DimensionScoreBar } from '@/components/sessions/report/DimensionScoreBar'
-import { StrengthsList } from '@/components/sessions/report/StrengthsList'
-import { CoachingNote } from '@/components/sessions/report/CoachingNote'
+import { Button } from '@/components/ui/button'
 import { ReportAudioPlayer } from '@/components/sessions/report/ReportAudioPlayer'
 import { RetryEvaluationButton } from '@/components/sessions/report/RetryEvaluationButton'
-import { Button } from '@/components/ui/button'
-import { RefreshCw, ArrowLeft, Clock, AlertTriangle } from 'lucide-react'
-import Link from 'next/link'
+import { ReportHero } from '@/components/sessions/report/ReportHero'
+import { DimensionCardList } from '@/components/sessions/report/DimensionCardList'
+import { ReflectionSection } from '@/components/sessions/report/ReflectionSection'
+import {
+  computeOverallAverage,
+  formatDuration,
+  normalizeDimensions,
+  type DimensionScoreRow,
+} from '@/components/sessions/report/report-utils'
+import styles from '@/components/sessions/report/report.module.css'
 
 // Değerlendirme kuyruğa alındıktan sonra tamamlanması 1-2 dakika alır.
 // getCurrentUser() cookies kullandığı için bu sayfa statik üretilemez.
@@ -62,113 +67,153 @@ export default async function SessionReportPage({ params }: ReportPageProps) {
     redirect(`/dashboard/sessions/${id}`)
   }
 
-  const [scoreHistory, messageCount] = await Promise.all([
-    report.persona?.id
-      ? getPersonaScoreHistory(currentUser.id, report.persona.id)
-      : Promise.resolve([]),
-    getSessionMessageCount(id),
-  ])
-
   const evaluation = report.evaluation
-  const dimensionScores = evaluation?.dimension_scores ?? []
 
-  return (
-    <div className="flex flex-col xl:flex-row flex-1 overflow-hidden h-full bg-background min-h-screen">
-      <div className="flex-1 overflow-y-auto w-full p-8 md:p-12 lg:p-20">
-        <div className="max-w-5xl mx-auto space-y-6">
-          {/* Üst navigasyon */}
-          <div className="flex items-center gap-4 mb-8">
-            <Link 
-              href="/dashboard/sessions"
-              className="font-label text-xs uppercase tracking-widest font-bold text-on-surface-variant hover:text-on-primary-container transition-colors flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" /> To Sessions
-            </Link>
+  // Failed durumu — yeniden tetikle butonu
+  if (evaluation?.status === 'evaluation_failed') {
+    return (
+      <div className={styles.scope}>
+        <BackBar sessionId={id} />
+        <div className={styles.page}>
+          <div className="py-24 flex flex-col items-center justify-center text-center max-w-lg mx-auto">
+            <div className="h-24 w-24 rounded-full bg-destructive/10 flex items-center justify-center mb-8">
+              <AlertTriangle className="h-10 w-10 text-destructive" />
+            </div>
+            <h2 className="font-headline text-3xl italic mb-4">Değerlendirme Başarısız Oldu</h2>
+            <p className="text-on-surface-variant leading-relaxed mb-8">
+              AI değerlendirme motoru bu seans için birkaç deneme yaptı ancak sonuç üretemedi.
+              Tekrar denemek için aşağıdaki butonu kullanabilirsin.
+            </p>
+            <RetryEvaluationButton sessionId={id} />
           </div>
-
-          {evaluation?.status === 'evaluation_failed' ? (
-            /* Kalıcı hata durumu */
-            <div className="py-24 flex flex-col items-center justify-center text-center max-w-lg mx-auto">
-              <div className="h-24 w-24 rounded-full bg-destructive/10 flex items-center justify-center mb-8">
-                <AlertTriangle className="h-10 w-10 text-destructive" />
-              </div>
-              <h2 className="font-headline text-3xl italic mb-4">Değerlendirme Başarısız Oldu</h2>
-              <p className="text-on-surface-variant leading-relaxed mb-8">
-                AI değerlendirme motoru bu seans için birkaç deneme yaptı ancak sonuç üretemedi. Tekrar denemek için aşağıdaki butonu kullanabilirsin.
-              </p>
-              <RetryEvaluationButton sessionId={id} />
-            </div>
-          ) : evaluation ? (
-            <>
-              {/* Sesli Rapor Player */}
-              <ReportAudioPlayer sessionId={id} />
-
-              {/* Genel Puan Başlığı / Narrative Header */}
-              <OverallScoreCard
-                overallScore={evaluation.overall_score}
-                personaName={report.persona?.name ?? 'Ekip Üyesi'}
-                scenarioTitle={report.scenario?.title ?? 'Session'}
-                durationSeconds={report.session.duration_seconds}
-                messageCount={messageCount}
-                completedAt={report.session.completed_at}
-              />
-
-              {/* Boyut Analizi */}
-              {dimensionScores.length > 0 && (
-                <div className="mb-24">
-                  <h3 className="font-label text-xs uppercase tracking-[0.2em] font-bold text-on-surface-variant mb-6">Competency Breakdown</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {(dimensionScores as Array<{ dimension_code: string; score: number; evidence_quotes?: string[]; improvement_tip?: string; rationale?: string }>).map((d) => (
-                      <DimensionScoreBar
-                        key={d.dimension_code}
-                        dimensionCode={d.dimension_code}
-                        score={d.score}
-                        evidence={d.evidence_quotes ?? []}
-                        feedback={d.improvement_tip ?? d.rationale ?? ''}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Güçlü Yanlar ve Gelişim */}
-              <StrengthsList
-                strengths={evaluation.strengths ?? []}
-                developmentAreas={evaluation.development_areas ?? []}
-              />
-
-            </>
-          ) : (
-            /* Değerlendirme henüz hazır değil - sayfayı yenile veya manuel tetikle */
-            <div className="py-24 flex flex-col items-center justify-center text-center max-w-lg mx-auto">
-              <div className="h-24 w-24 rounded-full bg-surface-container-highest/50 flex items-center justify-center mb-8 relative">
-                <Clock className="h-10 w-10 text-on-primary-container animate-spin duration-3000" />
-                <div className="absolute inset-0 border border-on-primary-container/30 rounded-full animate-ping blur-sm"></div>
-              </div>
-              <h2 className="font-headline text-3xl italic mb-4">Değerlendirme Hazırlanıyor</h2>
-              <p className="text-on-surface-variant leading-relaxed mb-8">
-                AI değerlendirme motoru seansınızı ICF rubric boyutlarına göre analiz ediyor. Lütfen birkaç dakika bekleyin. Eğer 2 dakikadan fazla beklediyseniz aşağıdaki &ldquo;Değerlendirmeyi Yeniden Tetikle&rdquo; butonuna basın.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button asChild variant="outline" className="rounded-full px-6 py-6 h-auto">
-                  <Link href={`/dashboard/sessions/${id}/report`} className="flex items-center gap-2">
-                    <RefreshCw className="h-5 w-5" />
-                    Sayfayı Yenile
-                  </Link>
-                </Button>
-                <RetryEvaluationButton sessionId={id} />
-              </div>
-            </div>
-          )}
         </div>
       </div>
+    )
+  }
 
-      {/* Sağ Panel Yansıma ve Koçluk Notu (Eğer rapor hazırsa gösterilir) */}
-      {evaluation && (
-        <CoachingNote
-          coachingNote={evaluation.coaching_note ?? ''}
-          managerInsight={evaluation.manager_insight ?? ''}
+  // Pending — değerlendirme bekleniyor
+  if (!evaluation) {
+    return (
+      <div className={styles.scope}>
+        <BackBar sessionId={id} />
+        <div className={styles.page}>
+          <div className="py-24 flex flex-col items-center justify-center text-center max-w-lg mx-auto">
+            <div className="h-24 w-24 rounded-full bg-surface-container-highest/50 flex items-center justify-center mb-8 relative">
+              <Clock className="h-10 w-10 text-on-primary-container animate-spin" style={{ animationDuration: '3s' }} />
+              <div className="absolute inset-0 border border-on-primary-container/30 rounded-full animate-ping blur-sm" />
+            </div>
+            <h2 className="font-headline text-3xl italic mb-4">Değerlendirme Hazırlanıyor</h2>
+            <p className="text-on-surface-variant leading-relaxed mb-8">
+              AI değerlendirme motoru seansınızı ICF rubric boyutlarına göre analiz ediyor. Lütfen
+              birkaç dakika bekleyin. Eğer 2 dakikadan fazla beklediyseniz aşağıdaki &ldquo;Yeniden
+              Dene&rdquo; butonuna basın.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button asChild variant="outline" className="rounded-full px-6 py-6 h-auto">
+                <Link href={`/dashboard/sessions/${id}/report`} className="flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5" />
+                  Sayfayı Yenile
+                </Link>
+              </Button>
+              <RetryEvaluationButton sessionId={id} />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Hazır rapor — yeni layered tasarım ──
+
+  const dimensionScores = (evaluation.dimension_scores ?? []) as DimensionScoreRow[]
+  const dimensions = normalizeDimensions(dimensionScores)
+  const overallAvg = computeOverallAverage(dimensions, Number(evaluation.overall_score) || 0)
+
+  // Hero için meta bilgi
+  const formattedDate = report.session.completed_at
+    ? new Date(report.session.completed_at).toLocaleDateString('tr-TR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    : 'Tarih belirsiz'
+  const durationLabel = formatDuration(report.session.duration_seconds)
+  const personaName = report.persona?.name ?? 'Ekip Üyesi'
+  const scenarioTitle = report.scenario?.title ?? 'Seans'
+
+  // Hero narrative — coaching_note ilk öncelikli, manager_insight fallback
+  const narrative =
+    (evaluation.coaching_note ?? evaluation.manager_insight ?? '').trim() ||
+    `Bu seansda ${dimensions.length} koçluk boyutu değerlendirildi.`
+
+  // Trend (aynı persona ile geçmiş seans skorları)
+  const trend = report.persona?.id
+    ? await getPersonaScoreHistory(currentUser.id, report.persona.id)
+    : []
+
+  return (
+    <div className={styles.scope}>
+      <BackBar sessionId={id} personaName={personaName} scenarioTitle={scenarioTitle} />
+
+      <div className={styles.page}>
+        {/* Sesli Rapor — küçük, hero üstünde */}
+        <div style={{ marginBottom: '1rem' }}>
+          <ReportAudioPlayer sessionId={id} />
+        </div>
+
+        {/* Layer 1: Hero */}
+        <ReportHero
+          overallAverage={overallAvg}
+          personaName={personaName}
+          scenarioTitle={scenarioTitle}
+          formattedDate={formattedDate}
+          durationLabel={durationLabel}
+          narrative={narrative}
+          dimensions={dimensions}
         />
+
+        {/* Layer 2 + 3 + 4 birlikte (interaktif scroll için) */}
+        <DimensionCardList dimensions={dimensions} overallAverage={overallAvg} />
+
+        {/* Layer 5: Yansıma — coaching_note Hero'da kullanılıyor, burada sadece
+            manager_insight + trend (2 kolon) */}
+        <ReflectionSection
+          managerInsight={evaluation.manager_insight ?? ''}
+          trend={trend}
+        />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * "Seanslarım"'a dön linki + opsiyonel başlık.
+ * Dashboard layout zaten AppHeader ve AppSidebar sağlıyor — bu sadece sayfa
+ * içi context çubuğu.
+ */
+function BackBar({
+  sessionId,
+  personaName,
+  scenarioTitle,
+}: {
+  sessionId: string
+  personaName?: string
+  scenarioTitle?: string
+}) {
+  void sessionId
+  return (
+    <div className={styles.inlineBar}>
+      <Link href="/dashboard/sessions" className={styles.backLink}>
+        <ArrowLeft className="w-4 h-4" />
+        Seanslarım
+      </Link>
+      {personaName && scenarioTitle && (
+        <div
+          className={styles.serif}
+          style={{ fontSize: '0.95rem', color: 'var(--rep-muted, #6B6880)' }}
+        >
+          <em style={{ color: '#9D6BDF', fontStyle: 'italic' }}>{personaName}</em> · {scenarioTitle}
+        </div>
       )}
     </div>
   )

@@ -54,8 +54,8 @@ export function RubricTenantAssignment({ templateId, assigned, unassigned }: Pro
     <div className="rounded-lg border p-4 space-y-4">
       <div className="flex items-center gap-2">
         <Building2 className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold">Tenant Atamaları</h2>
-        <Badge variant="secondary" className="text-[10px]">{assignedList.length} tenant</Badge>
+        <h2 className="text-sm font-semibold">Kurum Atamaları</h2>
+        <Badge variant="secondary" className="text-[10px]">{assignedList.length} kurum</Badge>
       </div>
 
       {assignedList.length > 0 ? (
@@ -77,14 +77,14 @@ export function RubricTenantAssignment({ templateId, assigned, unassigned }: Pro
           ))}
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">Bu rubric henüz hiçbir tenant&apos;a atanmamış.</p>
+        <p className="text-xs text-muted-foreground">Bu rubric henüz hiçbir kuruma atanmamış.</p>
       )}
 
       {unassignedList.length > 0 && (
         <div className="flex items-center gap-2">
           <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
             <SelectTrigger className="h-8 text-xs w-56">
-              <SelectValue placeholder="Tenant seç" />
+              <SelectValue placeholder="Kurum seç" />
             </SelectTrigger>
             <SelectContent>
               {unassignedList.map((t) => (

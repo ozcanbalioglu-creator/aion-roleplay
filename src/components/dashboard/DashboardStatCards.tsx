@@ -45,7 +45,7 @@ export function DashboardStatCards({
         subtitle={currentStreak >= 3 ? '🔥 Ritmini koruyorsun!' : 'Gelişim için her gün pratik yap'}
       />
       <StatCard
-        title="Toplam XP"
+        title="Toplam DP"
         value={xpPoints}
         icon={Zap}
         iconColor="text-amber-400"

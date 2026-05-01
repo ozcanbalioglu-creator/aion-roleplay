@@ -1,5 +1,9 @@
 # Post-Launch İyileştirmeler — Yapılacaklar Listesi
 
+> **GÜNCELLEME 2026-04-30:** PR #1 (rapor mimarisi + landing page) Vercel preview'de test edildiğinde 9 yeni iş kalemi tespit edildi. Detaylı liste: [`pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md`](pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md).
+>
+> **GÜNCELLEME 2026-05-01 (sprint sonu):** B2/B3/B4/U1/U2 + radar redesign + asset'ler + parçalı sorgu refactor (10 commit) tamamlandı. **F4 (Dashboard+Gelişimim birleştirme)** post-launch P1'e eklendi — font tutarsızlığı kritik nokta olarak işaretlendi.
+
 **Hazırlık tarihi:** 2026-04-27
 **Bağlam:** 1 Mayıs 2026 launch sonrası dönem için biriktirilen iyileştirme önerileri.
 **Kapsam:** Pre-launch sprint sırasında tespit edilen ama launch riskini almak istemediğimiz veya post-launch için daha uygun gelişmeler.
@@ -19,6 +23,44 @@
 ---
 
 ## 🔴 P1 — İlk 2 Hafta İçinde
+
+### P1-UX-001 — Dashboard + Gelişimim Sayfa Birleştirme (F4)
+
+**Bağlam:** Dashboard ve Gelişimim sayfaları yaklaşık %70 örtüşüyor (Toplam DP, Tamamlanan Seans, Ort. Puan, Skor Trendi, Boyut Radar her iki sayfada da var). Kullanıcı için "veri için neresi?" cognitive yükü yaratıyor.
+
+**Çözüm:** Tek "Dashboard" sayfası altında üç katmanlı bilgi mimarisi:
+- ÜSTTE: Stat kartları (Tamamlanan, Ort. Puan, DP, Streak)
+- ORTADA: Aktivite (Skor Trendi + Persona Bazlı + Son Seanslar)
+- ALTTA: Gelişim (Radar + Aylık Kıyas + Boyut Detay) + Yarıda Bırakılanlar
+- YANDA: Hedefler (Haftalık Görevler + Gelişim Planı)
+
+`/dashboard/progress` sidebar'dan kaldırılır, eski URL `/dashboard`'a redirect.
+
+**⚠️ KRİTİK NOT — FONT TUTARSIZLIĞI:**
+Dashboard ve Gelişimim sayfaları şu an **farklı font sistemleri** kullanıyor (başlık ve gövde fontları farklı uygulanmış). Birleştirme yaparken **Dashboard fontu standart kabul edilmeli**, tüm widget'lar bu sistemi kullanmalı:
+- Page title: `font-headline italic`
+- Section başlık: `font-headline`
+- Stat label: `font-body uppercase tracking-wider text-[10px] font-bold`
+- Veri/sayı: `font-body tabular-nums`
+- Body metin: `font-body`
+
+Acceptance: "Tüm widget'lar Dashboard font sistemi ile uyumlu görünüyor."
+
+**Aksiyon:**
+1. `dashboard/progress/page.tsx` widget'larını `dashboard/page.tsx`'e taşı
+2. `CancellationStatsWidget` (Yarıda Bırakılan) Dashboard'a ekle
+3. `dashboard/progress/page.tsx` → `redirect('/dashboard')`
+4. `navigation.ts`'ten "Gelişimim" sidebar item'ını kaldır
+5. Mobil nav (`MobileNav`) "Gelişim" → "Ana Sayfa" yönlendirmesini güncelle
+6. **Tüm widget font'larını Dashboard standardına hizala** (en kritik adım)
+
+**Tahmini süre:** 2-3 saat
+
+**Önkoşul:** Lansman sonrası en az 1 hafta gerçek kullanım — kullanıcılar mevcut akışa alıştıktan sonra birleştirme yapılırsa "kayıp" hissini minimize eder.
+
+**Detaylı plan:** [`pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md`](pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md) → F4
+
+---
 
 ### P1-Voice-001 — STT Servisi Upgrade Değerlendirmesi
 
@@ -489,6 +531,66 @@ Pricing değişimleri için `pricing_version` damgası — geriye dönük raporl
 - Sticky save button
 - Prompt ve sözleşme kartları için "preview" toggle (LLM'e nasıl görüneceği)
 - Bölüm anchor link'leri (skip to section)
+
+---
+
+### P3-Worktree-001 — Claude Worktree Temizliği ve Build Çalışırlığı
+
+**Bağlam:** Claude Code her oturumda `.claude/worktrees/<isim>` altında izole bir git worktree açar. Birikmiş worktree'ler diskte yer kaplar ama daha önemlisi: hiçbirinde `node_modules` yok. Bu yüzden worktree dizininde `npm run build` veya `npm run dev` çalıştırılınca Turbopack `next/package.json`'ı çözemiyor, hata veriyor:
+
+```
+Error: Next.js inferred your workspace root, but it may not be correct.
+We couldn't find the Next.js package (next/package.json) from the project directory:
+.../.claude/worktrees/<isim>/src/app
+```
+
+**Production etkisi:** SIFIR. Vercel CI fresh checkout + `npm install` yapar, GitHub'a push edilen branch'in worktree mantığı yoktur. Hata sadece **lokal worktree'de manuel build** çalıştırıldığında görünür.
+
+**Mevcut worktree envanteri (2026-04-30):**
+```
+elastic-ellis-01affa            AKTİF — bu sprint'in commit'leri (caa3dd8)
+agitated-kapitsa-bd755e         başka oturum, commit'leri olabilir
+zealous-taussig-f8a0cf          başka oturum, commit'leri olabilir
+flamboyant-tereshkova-2a81c9    BOŞ — main ile aynı commit (90d6b3a)
+goofy-morse-93558a              BOŞ — main ile aynı commit (90d6b3a)
+```
+
+**Aksiyon (sırayla):**
+
+1. **Boş worktree'leri sil** (5 dk, sıfır risk):
+   ```bash
+   git worktree remove .claude/worktrees/flamboyant-tereshkova-2a81c9
+   git worktree remove .claude/worktrees/goofy-morse-93558a
+   ```
+
+2. **Aktif worktree'lerin durumunu netleştir** (10 dk):
+   - `agitated-kapitsa-bd755e` ve `zealous-taussig-f8a0cf`'da hangi branch var, merge edildi mi kontrol et
+   - Merge edildiyse worktree + branch'i sil; edilmediyse PR aç veya pas geç
+
+3. **Symlink ile worktree'lerde build aktive et** (opsiyonel, 1 dk):
+   ```bash
+   for d in .claude/worktrees/*/; do
+     [ ! -e "$d/node_modules" ] && ln -s ../../../node_modules "$d/node_modules"
+   done
+   ```
+   Veya `.git/hooks/post-checkout` ile otomatik:
+   ```bash
+   #!/bin/sh
+   [ ! -e node_modules ] && [ -d ../../../node_modules ] && ln -s ../../../node_modules node_modules
+   ```
+
+4. **Karar: Claude Code worktree davranışı** (R&D):
+   - Worktree akışı çoklu Claude oturumu için faydalı (paralel çalışma + branch izolasyonu)
+   - Tek oturum çalışıyorsan ana dizinde direkt çalışmak da mümkün — Claude settings'te kapatılabilir mi araştırılmalı
+
+**Acceptance:**
+- Worktree'lerde `npm run build` ve `npm run dev` çalışır hale gelir VEYA
+- Worktree akışı kapatılır + ana dizinde çalışılır
+- Boş worktree'ler temizlenir (disk + zihinsel yük)
+
+**Tahmini süre:** 30 dk (boş worktree silme + symlink). 2 saat (aktif worktree audit + Claude settings araştırması).
+
+**Risk:** Aktif worktree'lerde merge edilmemiş commit'ler varsa veri kaybı. Önce `git worktree list -v` ile commit hash'leri kontrol et.
 
 ---
 

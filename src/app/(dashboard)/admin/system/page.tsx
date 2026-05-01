@@ -128,7 +128,7 @@ export default async function AdminSystemPage() {
       {/* Platform stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Tenant', value: tenantCount ?? 0 },
+          { label: 'Kurum', value: tenantCount ?? 0 },
           { label: 'Kullanıcı', value: userCount ?? 0 },
           { label: 'Seans', value: sessionCount ?? 0 },
           { label: 'Değerlendirme', value: evalCount ?? 0 },

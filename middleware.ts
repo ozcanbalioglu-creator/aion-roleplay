@@ -7,6 +7,9 @@ const PUBLIC_ROUTES = [
   '/api/health'
 ]
 
+// Public landing — tam eşleşme. Authenticated user `/` -> `/dashboard`'a yönlendirilir.
+const PUBLIC_LANDING_PATH = '/'
+
 const CONSENT_ROUTE = '/consent'
 
 // Sadece super_admin
@@ -30,6 +33,16 @@ export async function middleware(request: NextRequest) {
   }
 
   const { supabaseResponse, user } = await updateSession(request)
+
+  // Public landing (`/`) — auth durumuna göre davran:
+  //  - giriş yapmış kullanıcı doğrudan dashboard'a
+  //  - giriş yapmamış kullanıcı landing'i görsün
+  if (pathname === PUBLIC_LANDING_PATH) {
+    if (user) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    return supabaseResponse
+  }
 
   // Giriş yapılmamış → /login
   if (!user) {

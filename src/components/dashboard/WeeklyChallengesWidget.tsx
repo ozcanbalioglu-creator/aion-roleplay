@@ -97,7 +97,7 @@ export function WeeklyChallengesWidget({ challenges }: WeeklyChallengesWidgetPro
                 <div className="flex-shrink-0 flex flex-col items-end gap-1">
                   <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
                     <span className="text-[10px] font-black text-amber-500">+{ch.xp_reward}</span>
-                    <span className="text-[8px] font-bold text-amber-500/70">XP</span>
+                    <span className="text-[8px] font-bold text-amber-500/70">DP</span>
                   </div>
                   {isCompleted && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
                 </div>

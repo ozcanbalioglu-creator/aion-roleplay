@@ -4,6 +4,188 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
+## Hata Kaydı — 2026-05-01 (PR #1 Test Geri Bildirimi Düzeltmeleri)
+
+> **Bekleyen iş:** F4 (Dashboard + Gelişimim birleştirme) post-launch'a aktarıldı; **font tutarsızlığı kritik nokta** olarak işaretlendi (Dashboard fontu standart). F2 (sesli rapor + transkript), F3 (AI insights), B1 (header FOUC derinlemesine fix) post-launch listede.
+
+### DASHBOARD-EVAL-JOIN-001 — Nested evaluations join'i RLS'de null dönüyordu (ÇÖZÜLDÜ ✅)
+
+**Bağlam:** Migration 051 (completed_at backfill) sonrası "Tamamlanan Seans" doğru sayılıyor (15) ama "Ort. Koçluk Puanı / Skor Trendi / Persona Bazlı Başarı" boş. SQL Editor'da kullanıcının 6 evaluation'ı görünüyor (overall_score 2.6-3.8, status=completed, user_id_match=true).
+
+**Kök neden:** PostgREST nested join `evaluations(overall_score)` RLS context'inde sessizce null array döndürüyor. EVAL-SCHEMA-MISMATCH-001 + USER-BADGES-MISSING-001 ile aynı pattern. RLS policy `evaluations_own` (`user_id = auth.uid()`) doğru tanımlı ama nested embed bypass ediyor.
+
+**Fix:** `dashboard.queries.ts`'in 4 fonksiyonu **parçalı sorgu** pattern'ine geçirildi:
+- `getDashboardStats`: sessions ayrı çek → sessionIds ile evaluations çek → kodda `Map`'le birleştir
+- `getScoreTrend`: sessions + evaluations + personas paralel sorgu
+- `getPersonaScoreComparison`: aynı pattern
+- `getRecentSessions`: sessions + evaluations + personas + scenarios paralel + UI shape uyumlu mock array (`evaluations: [{overall_score}]`)
+
+`getDimensionAverages` zaten parçalı sorgu kullanıyordu, etkilenmedi.
+
+**Mimari kazanım:** "Nested PostgREST join + RLS = sessizce null" — bu pattern artık dokümante edilmiş ve `lib/queries/evaluation.queries.ts` + `dashboard.queries.ts`'de defansif şekilde uygulanmış. Yeni query yazılırken aynı tuzağa düşülmemeli.
+
+**İlgili dosyalar:** `src/lib/queries/dashboard.queries.ts` (commit `262096e`)
+
+---
+
+### COMPLETED-AT-NULL-001 — endSessionAction completed_at set etmiyordu (ÇÖZÜLDÜ ✅)
+
+**Kök neden:** `endSessionAction` 'debrief_active' geçişinde sadece `status` ve `duration_seconds` set ediyordu; `completed_at` NULL kalıyordu. `finishDebriefAction` debrief tamam olunca set ediyor ama kullanıcı debrief'i atlarsa NULL kalır.
+
+Sonuç: tüm dashboard query'leri `gte('completed_at', since)` ve `order('completed_at')` kullandığı için NULL satırları sessizce eliyordu → "Tamamlanan Seans=0", "Ort. Puan=—", boş grafikler.
+
+**Fix (iki katman):**
+
+1. **`endSessionAction`'a `completed_at: new Date().toISOString()` eklendi** — kullanıcı debrief'i atlasa bile timestamp set olur (commit `8a50863`).
+
+2. **Migration 051** — mevcut NULL satırlar için backfill:
+   ```sql
+   UPDATE sessions
+   SET completed_at = COALESCE(
+     started_at + (duration_seconds || ' seconds')::interval,
+     cancelled_at,
+     started_at,
+     created_at
+   )
+   WHERE completed_at IS NULL AND status IN (...)
+   ```
+   - İlk denemede `evaluation_failed` enum hatası — sessions.status enum'unda yok, `evaluations.status`'ta. Çıkarıldı.
+   - İkinci denemede `updated_at` kolonu yok hatası — sessions tablosunda updated_at yok. `started_at` fallback'le değiştirildi.
+
+**Bonus:** Migration 050 — `user_persona_stats` VIEW eski hâliyle sadece `s.status = 'completed'` filter ediyordu. `debrief_completed` dahil edilerek persona "İlk Kez X" filtresi düzeltildi.
+
+**İlgili dosyalar:** `src/lib/actions/session.actions.ts`, `supabase/migrations/20260430_050_*.sql`, `supabase/migrations/20260501_051_*.sql`
+
+---
+
+### REPO-ORPHAN-SUBMODULE-001 — Vercel "Failed to fetch git submodules" warning'i (ÇÖZÜLDÜ ✅)
+
+**Kök neden:** Önceki bir Claude oturumu (`frosty-hofstadter-455f28`) yanlışlıkla `.claude/worktrees/` klasörünü submodule (mode 160000) olarak commit etmiş. Worktree fiziksel olarak yok ama git history'de referans kalmış → Vercel her build'de submodule fetch yapmaya çalışıp uyarı veriyordu.
+
+**Fix:** `git rm --cached .claude/worktrees/frosty-hofstadter-455f28` (commit `301d61e`). `.gitignore` zaten `.claude/worktrees/` kapsıyor — yeni eklemeler engelli.
+
+**Mimari not:** Worktree'ler iz bırakmamalı. `.gitignore`'da explicit yer alıyor; Claude Code worktree açtığında yanlışlıkla `git add .` yapmayalım — pre-commit hook eklemek değerlendirilebilir (post-launch).
+
+**İlgili dosyalar:** `.gitignore` (zaten doğru)
+
+---
+
+## Hata Kaydı — 2026-04-30 (Rapor Mimarisi + Bağlı Düzeltmeler)
+
+> **Bekleyen iş:** PR #1 sonrası test sırasında 9 ek tespit yapıldı. Detay: [`Gelistirme23Nisan/pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md`](Gelistirme23Nisan/pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md). 2026-05-01'de büyük çoğunluğu çözüldü; F4 (Dashboard+Gelişimim birleştirme), F2 (sesli rapor metin), F3 (AI insights), B1 (header FOUC derinlemesine) post-launch'a aktarıldı.
+
+### USER-BADGES-MISSING-001 — Rozetler Hiç Verilmiyordu (4 KATMAN, ÇÖZÜLDÜ ✅)
+
+**Bağlam:** Tenant admin Bronz/Gümüş/Altın 3 rozet tanımladı (1/2/3 seans için). Kullanıcı 14 seans tamamladı ama Başarılarım sayfası "0 rozet" gösteriyordu. Vercel logs'a detaylı `awardXPAndBadges` log'u eklendikten sonra **4 ayrı bug** tek tek ortaya çıktı:
+
+1. **`badges.badge_code` kolonu yok** → SELECT 42703 fail → badges null → loop boş → kimseye rozet verilmedi.
+   Migration 015 seed'de `badge_code` kolonu vardı ama 009'da CREATE TABLE'da hiç tanımlanmamıştı. Sadece `code` var.
+   **Fix:** SELECT'ten `badge_code` çıkarıldı, tüm referanslar `badge.code`'a normalize.
+
+2. **`rubric_templates.tenant_id` kolonu yok** → getSessionReport JOIN 42703 fail → rubric metadata null → boyut isimleri görünmüyordu.
+   Template'ler global; tenant assignment `tenants.rubric_template_id` üzerinden yapılır.
+   **Fix:** Önce `tenants.rubric_template_id` çekilir, sonra `rubric_dimensions.template_id` eq filter ile sorgu.
+
+3. **`user_badges.tenant_id` NOT NULL ihlali** → INSERT 23502 fail → algoritmik olarak doğru çalışan kontrol (KAZANILDI log'u atılıyor) ama DB insert hep patlıyordu.
+   **Fix:** Insert payload'una `tenant_id: params.tenantId` eklendi.
+
+4. **`getUserBadges` nested join'inde `badge_code` çağrısı** → PostgREST tüm sorguyu null'a çevirir → AchievementsPage `userBadges=[]` görür → "0 rozet" UI bug.
+   Database'de 3 rozet ZATEN VARDI (3. fix'ten sonra), ama UI sorgusu bunu çekemiyordu.
+   **Fix:** `badges(badge_code, ...)` → `badges(code, ...)` + error log eklendi.
+
+**Bonus:** Awards backfill SQL'i de aynı `tenant_id` NOT NULL hatası yüzünden sessizce 0 row insert ediyordu. SQL'e `u.tenant_id` eklendi. Ayrıca diagnostic SQL'lerde `(criteria->>'value')::int` cast bazı global seed badge'lerinde "4.0" string'i nedeniyle 22P02 hatası verdi — sadece tenant rozet filter'ı ile cast'ten kaçınıldı.
+
+**Mimari kazanım:** Bu seri PostgREST nested join'inin "tek kolon hatası → tüm sorgu null" pattern'ini bir kez daha gösterdi (EVAL-SCHEMA-MISMATCH-001 ile aynı). `awardXPAndBadges`'e detaylı log eklenmesi sayesinde 4 katman bug'ı 30 dakikada teşhis edildi.
+
+**İlgili dosyalar:** `src/lib/evaluation/gamification.service.ts`, `src/lib/queries/gamification.queries.ts`, `src/lib/queries/evaluation.queries.ts`
+
+---
+
+### REPORT-REDESIGN-001 — 5 Katmanlı Yeni Seans Raporu Mimarisi (UYGULANDI ✅)
+
+**Bağlam:** Eski rapor "ortalama puan + güçlü/gelişim listeleri" tarzındaydı — soyut, aksiyona dökülemez. `docs/AION Mirror Session Report.html` şablonundaki layered + kanıt-odaklı yapıya geçildi (referans: `docs/RAPOR_REDESIGN_TASLAK.md`).
+
+**Yeni mimari — 5 katman:**
+- **L1 Hero** — büyük genel skor (0-5), durum etiketi (5 seviyeli statü), narrative paragraf, meta chip'ler
+- **L2 Radar** — 8 ICF boyutu SVG radar + tıklanabilir legend + en güçlü/zayıf
+- **L3 Dim Cards** — boyut bazlı: skor barı, evidence quote, "Bir Sonraki Seansda Dene" + "Neden Önemli" 2-sütun
+- **L4 Action Panel** — Güçlü Alanlar (≥4) / Gelişim Alanları (<3.5) / Bir Sonraki Odak / Kontrol Listesi (zorunlu boyutlar)
+- **L5 Reflection** — Liderlik İçgörüsü + Trend (son 5 seans delta'sı, 2 kolon)
+
+**Dashboard layout korundu:** Header (`AppHeader`) ve sidebar (`AppSidebar`) hiç dokunulmadı; sadece sayfa gövdesi yeniden yazıldı. Şablonun "sticky top bar"ı atlandı çünkü AppHeader zaten o işi yapıyor.
+
+**İlgili dosyalar:** `src/components/sessions/report/{ReportHero,ReportRadar,DimensionCardList,ActionPanel,ReflectionSection,report-utils,report.module.css}.tsx`, `src/app/(dashboard)/dashboard/sessions/[id]/report/page.tsx`, `src/lib/queries/evaluation.queries.ts` (rubric_dimensions metadata join)
+
+**Veri Modeli Kararı (2026-04-30):** RAPOR_REDESIGN_TASLAK.md'deki "Veri Modeli Etkisi" tespitleri (A: `rubric_dimensions.pillar_code`, B: `dimension_scores` yeterlilik, C: `evaluations` ek kolonlar) denetlendi:
+
+- **A — pillar_code:** Uygulanmadı, gerek yok. Şablonda 4-pillar gruplaması yok, 8 boyut tek seviye liste/radar olarak gösteriliyor. Yeni migration gerekmiyor.
+- **B — dimension_scores:** Doğru, mevcut kolonlar (`dimension_code, score, evidence_quotes, improvement_tip, rationale`) yeterli. EVAL-FIELD-DUPLICATION-001 fix'iyle improvement_tip ve rationale ayrı doluyor.
+- **C — evaluations ek kolonlar:** Uygulanmadı (önerilen yol bu zaten). `status_label`, `next_focus`, `checklist` gibi türevler render time'da hesaplanıyor (`getStatusPill`, `ActionPanel`). Migration azaldı, esnek.
+
+---
+
+### EVAL-FIELD-DUPLICATION-001 — `improvement_tip` ve `rationale` LLM'in Aynı Metni Üretiyordu (ÇÖZÜLDÜ ✅)
+
+**Kök neden:** Önceki evaluation prompt'u her boyut için tek bir `feedback` alanı istiyor, engine bunu **hem `improvement_tip` hem `rationale` kolonuna kopyalıyordu**. Yeni rapor UI'ı bu iki alanı 2 ayrı kart olarak gösterdiği için ("Bir Sonraki Seansda Dene" + "Neden Önemli") aynı metin kullanıcıya iki kez sergileniyordu.
+
+**Uygulanan fix (iki katman):**
+
+1. **`evaluation-prompt.builder.ts`** — JSON şemasında `feedback` kaldırıldı, yerine iki ayrı alan:
+   - `improvement_tip`: imperatif eylem cümlesi ("...şu cümleyle başla", "...sessizliği uzat")
+   - `rationale`: puanın gerekçesi + eylemin neden önemli olduğu
+   Sistem promptu kuralları 3-4'te "KESİNLİKLE birbirinin tekrarı olamaz" yasağı eklendi. Aynı yasak `coaching_note` ↔ `manager_insight` için de var (kural 8-9).
+
+2. **`evaluation.engine.ts`** — `parsed.dimensions[]` type'ı `improvement_tip?` + `rationale?` ayrı alanlar. Insert mapping iki ayrı kolona yazıyor. **Geriye dönük uyumlu:** eski yanıtlarda sadece `feedback` varsa onu `rationale`'a fallback yapıyor (improvement_tip boş kalır), eski seansların raporu kırılmaz.
+
+**İlgili dosyalar:** `src/lib/evaluation/evaluation-prompt.builder.ts`, `src/lib/evaluation/evaluation.engine.ts`
+
+---
+
+### SESSION-LIST-VISIBILITY-001 — `debrief_completed` Seanslarında Rapor Linki Yoktu (ÇÖZÜLDÜ ✅)
+
+**Kök neden:** Yeni debrief akışında seans `'completed'` yerine `'debrief_completed'` durumunda bitiyordu. `SessionList.tsx:167` sadece `status === 'completed'` kontrolü yapıyordu → Rapor linki yeni akış seanslarında gözükmüyordu. Skor sütunundaki "Değerlendiriliyor" yazısı da aynı sorundan etkileniyordu.
+
+Ayrıca `debrief_active` durumu (kullanıcı debrief'i yarıda bıraktıysa) hiç hesaplanmamıştı — aksiyon kolonunda `-` gözüküyordu, kullanıcı seansa dönemiyordu.
+
+**Uygulanan fix:**
+- Aksiyon kolonu: `['completed', 'debrief_completed', 'evaluation_failed']` → "Rapor" linki
+- Aksiyon kolonu: `'debrief_active'` → "Geri Bildirime Dön" → `/dashboard/sessions/[id]` (page.tsx:53 zaten DebriefSessionClient'a yönlendiriyor)
+- Skor kolonu: `['completed', 'debrief_completed']` → "Değerlendiriliyor" mesajı
+
+**İlgili dosyalar:** `src/components/sessions/SessionList.tsx`
+
+---
+
+### GAMIFICATION-PROFILE-MISSING-001 — Başarılarım Sayfası Boş (ÇÖZÜLDÜ ✅)
+
+**Kök neden:** Yeni kullanıcılar için `gamification_profiles` row'u oluşturulmuyordu. Migration zincirinde `users` INSERT'ine bağlı bir trigger yoktu. `awardXPAndBadges` (gamification.service.ts:84) profile yoksa sessizce `xpEarned: 0` döndürüyor → hiç XP yazılmıyor, hiç rozet kontrolü yapılmıyor → Başarılarım sayfası sürekli boş, XP geçmişi boş, rozet sayısı 0.
+
+**Elenen hipotezler:**
+- `badges` tablosu boş mu? — ✅ HAYIR, seed migration 015 + 009'da var
+- RLS policy eksik mi? — ✅ HAYIR, `gamification_own` (user_id = auth.uid()) + `gamification_system_all` aktif
+
+**Uygulanan fix (iki katmanlı):**
+
+1. **Migration 049** (`20260430_049_gamification_profile_auto_create.sql`):
+   - **BACKFILL:** Mevcut kullanıcılar için eksik profile'ları toplu oluştur (`WHERE tenant_id IS NOT NULL` — orphan'lar atlanır)
+   - **TRIGGER:** `AFTER INSERT ON users → auto_create_gamification_profile()` — yeni kullanıcı oluşturulunca otomatik profile insert
+   - `SECURITY DEFINER` + `ON CONFLICT DO NOTHING` — idempotent, güvenli
+   - `RAISE WARNING` ile NULL tenant_id durumu loglanır
+   - Doğrulama sorguları yorum bloğunda
+
+2. **Kod savunma katmanı** (`gamification.service.ts:84-105`):
+   - Profile yoksa eski sessiz return yerine `INSERT` ile oluşturup devam ediyor
+   - Trigger uygulanmamış olsa veya manuel SQL ile kullanıcı eklenmiş olsa bile çalışır
+   - Insert fail olursa graceful fallback (eski davranış korunur, log'a düşer)
+
+**Bonus bulgu:** Migration ilk denemede başarısız oldu çünkü staging DB'sinde `tenant_id` NULL olan orphan bir kullanıcı vardı (auth trigger default tenant bulamamış olabilir). NULL-safe filter eklendi (`WHERE u.tenant_id IS NOT NULL`); orphan user manuel düzeltildi (kullanıcı kararı).
+
+> **Not:** Backfill **mevcut seansları** geri tetiklemez — daha önce yapılmış ama profile olmadığı için XP yazılmamış seanslar için XP retroaktif olarak verilmez. Sadece bundan sonraki seanslar normal davranır.
+
+**İlgili dosyalar:** `supabase/migrations/20260430_049_gamification_profile_auto_create.sql`, `src/lib/evaluation/gamification.service.ts`
+
+---
+
 ## Hata Kaydı — 2026-04-29 İkinci Tur
 
 ### EVAL-SCHEMA-MISMATCH-001 — Evaluation Hiç Oluşmuyordu (ÇÖZÜLDÜ ✅)

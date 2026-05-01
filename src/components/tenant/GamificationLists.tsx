@@ -145,7 +145,7 @@ export function GamificationLists({ badges, challenges }: GamificationListsProps
                       <p className="text-sm font-semibold truncate">{badge.name}</p>
                       <div className="flex items-center gap-1 shrink-0">
                         <Zap className="h-3 w-3 text-amber-500" />
-                        <span className="text-xs font-medium text-amber-600">{badge.xp_reward} XP</span>
+                        <span className="text-xs font-medium text-amber-600">{badge.xp_reward} DP</span>
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground line-clamp-2">{badge.description}</p>
@@ -212,7 +212,7 @@ export function GamificationLists({ badges, challenges }: GamificationListsProps
                       </p>
                       <div className="flex items-center gap-1 shrink-0">
                         <Zap className="h-3 w-3 text-amber-500" />
-                        <span className="text-xs font-medium text-amber-600">{challenge.xp_reward} XP</span>
+                        <span className="text-xs font-medium text-amber-600">{challenge.xp_reward} DP</span>
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground line-clamp-2">{challenge.description}</p>

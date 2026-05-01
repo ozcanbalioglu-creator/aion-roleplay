@@ -134,19 +134,24 @@ export async function buildEvaluationPrompt(
     .join('\n\n')
 
   // Beklenen JSON şeması
+  // ÖNEMLİ: improvement_tip ve rationale AYRI alanlar — birbirinin tekrarı olamaz.
+  // - improvement_tip: "Bir sonraki seansda ne yap?" — eylem cümlesi (imperatif).
+  // - rationale: "Bu boyutta neden bu puanı aldı? / Neden bu eylem önemli?" — sebep cümlesi.
+  // Tek bir feedback alanını her iki yere kopyalamak rapor UI'ında duplikasyon yaratıyordu.
   const expectedJsonSchema = JSON.stringify(
     {
       dimensions: dimensions.map((d) => ({
         dimension_code: d.dimensionCode,
         score: '1-5 arası tam sayı',
         evidence: ['Transcript\'ten doğrudan alıntı 1', 'alıntı 2'],
-        feedback: 'Bu boyut için gelişim önerisi (1-2 cümle, Türkçe)',
+        improvement_tip: 'Bir sonraki seansda denenmesi gereken somut eylem (imperatif, 1 cümle)',
+        rationale: 'Bu puanın gerekçesi VE eylemin neden önemli olduğu (1-2 cümle)',
       })),
       overall_score: 'Tüm boyutların ağırlıklı ortalaması (1 ondalık)',
       strengths: ['Güçlü yan 1', 'Güçlü yan 2', 'Güçlü yan 3'],
       development_areas: ['Gelişim alanı 1', 'Gelişim alanı 2'],
-      coaching_note: 'Genel koçluk notu (2-3 cümle, yöneticiye hitap eder, Türkçe)',
-      manager_insight: 'Yöneticinin güçlü liderlik içgörüsü (1 cümle, Türkçe)',
+      coaching_note: 'Hero özet — yöneticiye doğrudan hitap, en güçlü ve en zayıf yanı tek paragrafta birleştiren 3-4 cümlelik koçluk notu (Türkçe)',
+      manager_insight: 'Yöneticinin öne çıkan tek bir liderlik içgörüsü (1-2 cümle, Türkçe)',
     },
     null,
     2
@@ -162,12 +167,13 @@ ${dimensionList}
 
 1. Her boyut için 1-5 arası tam sayı ver (ondalık yok).
 2. Evidence olarak transcript'ten kelimesi kelimesine kısa alıntılar ver (max 20 kelime).
-3. Feedback Türkçe, yapıcı, spesifik ve uygulanabilir olmalı.
-4. overall_score: zorunlu boyutlar 1.5x ağırlıkla hesaplanır.
-5. Strengths: 2-4 madde, güçlü koçluk davranışları.
-6. Development_areas: 1-3 madde, somut gelişim önerileri.
-7. coaching_note: Yöneticiye hitap eden genel değerlendirme notu.
-8. manager_insight: Yöneticinin öne çıkan tek bir liderlik içgörüsü.
+3. **improvement_tip**: Bir sonraki seansta UYGULANABİLİR somut bir eylem cümlesi. İmperatif: "...şu cümleyle başla", "...sessizliği 5 saniye uzat", "...soruyu açık uçlu sor". Türkçe, 1 cümle.
+4. **rationale**: Bu puanın NEDEN verildiğini ve önerilen eylemin NEDEN önemli olduğunu açıklayan gerekçe. 1-2 cümle. KESİNLİKLE improvement_tip'in tekrarı olamaz — improvement_tip "ne yap?" sorusunun cevabıdır, rationale "neden?" sorusunun cevabıdır. Aynı içeriği iki kez yazma.
+5. overall_score: zorunlu boyutlar 1.5x ağırlıkla hesaplanır.
+6. Strengths: 2-4 madde, güçlü koçluk davranışları.
+7. Development_areas: 1-3 madde, somut gelişim önerileri.
+8. coaching_note: Hero özeti — yöneticiye 2. tekil şahısla ("Sen, sen") hitap eden, seansın **en güçlü** yanını ve **en kritik gelişim** alanını tek paragrafta birleştiren 3-4 cümlelik bağlam paragrafı.
+9. manager_insight: Yöneticinin öne çıkan tek bir liderlik içgörüsü — coaching_note ile aynı şeyi söyleme; daha derin/insancıl bir gözlem.
 
 Yanıtını YALNIZCA geçerli JSON formatında ver. Başka metin ekleme.`
 

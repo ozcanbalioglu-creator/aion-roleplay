@@ -91,7 +91,7 @@ export function CreateTenantDialog({ open, onOpenChange, tenant, rubricTemplates
           <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Building2 className="h-5 w-5" />
           </div>
-          <SheetTitle>{isEdit ? 'Tenant Güncelle' : 'Yeni Tenant Oluştur'}</SheetTitle>
+          <SheetTitle>{isEdit ? 'Kurumu Güncelle' : 'Yeni Kurum Oluştur'}</SheetTitle>
           <SheetDescription>
             Kurum bilgilerini, marka detaylarını ve yönetici hesabını yapılandırın.
           </SheetDescription>
@@ -225,7 +225,7 @@ export function CreateTenantDialog({ open, onOpenChange, tenant, rubricTemplates
               <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg border !bg-[#f5f2ff]">
                 {logoPreview || tenant?.logo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logoPreview ?? tenant?.logo_url ?? ''} alt="Tenant logosu" className="h-full w-full object-contain" />
+                  <img src={logoPreview ?? tenant?.logo_url ?? ''} alt="Kurum logosu" className="h-full w-full object-contain" />
                 ) : (
                   <ImageIcon className="h-6 w-6 text-muted-foreground" />
                 )}
@@ -242,7 +242,7 @@ export function CreateTenantDialog({ open, onOpenChange, tenant, rubricTemplates
 
           <section className="space-y-4 border-t pt-5">
             <div>
-              <h3 className="text-sm font-semibold">Tenant Admin Bilgileri</h3>
+              <h3 className="text-sm font-semibold">Kurum Yöneticisi Bilgileri</h3>
               <p className="text-xs text-muted-foreground">
                 {isEdit
                   ? 'Kurum yöneticisinin profil bilgilerini güncelleyin. Şifre boş bırakılırsa değişmez.'

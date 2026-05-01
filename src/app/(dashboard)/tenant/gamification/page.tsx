@@ -44,7 +44,7 @@ export default async function TenantGamificationPage() {
               {[
                 { step: '1', title: 'Tanımla', desc: 'Burada rozet ve görev şablonları oluşturun.' },
                 { step: '2', title: 'Dağıt', desc: 'Her Pazartesi sistem, çalışanlara 3 haftalık görev atar.' },
-                { step: '3', title: 'Kazan', desc: 'Kullanıcı görevi tamamlayınca XP ve rozet otomatik verilir.' },
+                { step: '3', title: 'Kazan', desc: 'Kullanıcı görevi tamamlayınca DP ve rozet otomatik verilir.' },
               ].map(({ step, title, desc }) => (
                 <div key={step} className="flex gap-3">
                   <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center shrink-0">{step}</span>

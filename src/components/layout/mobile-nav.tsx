@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LayoutDashboard, MessagesSquare, BarChart3, Trophy, UserCircle } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 const MOBILE_NAV_ITEMS = [
   { label: 'Ana Sayfa', href: '/dashboard', icon: LayoutDashboard },
@@ -13,11 +14,21 @@ const MOBILE_NAV_ITEMS = [
   { label: 'Profil', href: '/dashboard/profile', icon: UserCircle },
 ]
 
+// FOUC fix v2 (B1): useIsMobile koşullu render. Tailwind responsive class
+// (md:hidden veya hidden max-md:flex) initial render'da CSS yüklenmeden
+// HTML rendered olduğu kısa anda nav'ı sayfa ortasında flash ediyordu.
+// useIsMobile ilk render'da false döner (initial state undefined) → SSR ve
+// initial client render eşleşir (her ikisi de null) → hydration sonrası
+// useEffect tetiklenir → mobile ise gerçek nav mount eder. Desktop'ta nav
+// HİÇ render edilmez, FOUC imkânsız.
 export function MobileNav() {
+  const isMobile = useIsMobile()
   const pathname = usePathname()
 
+  if (!isMobile) return null
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t flex">
       <div className="flex items-center justify-around px-2 py-2 safe-area-bottom">
         {MOBILE_NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href ||

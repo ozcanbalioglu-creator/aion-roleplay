@@ -87,13 +87,13 @@ export function TenantTable({ tenants, rubricTemplates = [] }: TenantTableProps)
         data={tenants}
         columns={columns}
         searchKeys={['name', 'slug']}
-        searchPlaceholder="Tenant ara..."
-        emptyMessage="Henüz tenant yok."
+        searchPlaceholder="Kurum ara..."
+        emptyMessage="Henüz kurum yok."
       />
       <ConfirmDialog
         open={!!confirmTarget}
         onOpenChange={(open) => !open && setConfirmTarget(null)}
-        title={confirmTarget?.is_active ? 'Tenant Pasifleştir' : 'Tenant Aktifleştir'}
+        title={confirmTarget?.is_active ? 'Kurumu Pasifleştir' : 'Kurumu Aktifleştir'}
         description={`"${confirmTarget?.name}" kurumunu ${confirmTarget?.is_active ? 'pasifleştirmek' : 'aktifleştirmek'} istediğinize emin misiniz?`}
         confirmLabel={confirmTarget?.is_active ? 'Pasifleştir' : 'Aktifleştir'}
         variant={confirmTarget?.is_active ? 'destructive' : 'default'}

@@ -59,14 +59,19 @@ export async function getSessionReport(sessionId: string) {
 
   console.log(`[getSessionReport] sessionId=${sessionId} hasEval=${!!evaluationRes.data}`)
 
-  // 5. Dimension scores (evaluation varsa)
-  let dimensionScores: Array<{
+  // 5. Dimension scores (evaluation varsa) + rubric metadata
+  type DimensionScoreRow = {
     dimension_code: string
     score: number
     evidence_quotes: string[] | null
     improvement_tip: string | null
     rationale: string | null
-  }> = []
+    name: string | null
+    description: string | null
+    is_required: boolean
+    sort_order: number
+  }
+  let dimensionScores: DimensionScoreRow[] = []
 
   if (evaluationRes.data?.id) {
     const { data: dimRows, error: dimErr } = await supabase
@@ -77,7 +82,65 @@ export async function getSessionReport(sessionId: string) {
     if (dimErr) {
       console.error('[getSessionReport] dimension_scores err:', dimErr)
     } else {
-      dimensionScores = (dimRows ?? []) as typeof dimensionScores
+      // Rubric metadata — boyut adı, açıklaması, sort, is_required
+      // NOT: rubric_templates.tenant_id YOK — template'ler global, tenant assignment
+      // tenants.rubric_template_id üzerinden yapılır. Bu yüzden tenant'ın atanmış
+      // template'ini ÖNCE çekip rubric_dimensions'ı template_id ile filtreliyoruz.
+      const codes = (dimRows ?? []).map((r) => r.dimension_code)
+      const metaByCode: Record<string, { name: string | null; description: string | null; is_required: boolean; sort_order: number }> = {}
+
+      if (codes.length > 0) {
+        // Tenant'ın atanmış template'ini çek
+        const { data: tenantRow } = await supabase
+          .from('tenants')
+          .select('rubric_template_id')
+          .eq('id', currentUser.tenant_id)
+          .maybeSingle()
+
+        const templateId = tenantRow?.rubric_template_id ?? null
+
+        // rubric_dimensions sorgusu — template_id varsa ona göre filter,
+        // yoksa tüm eşleşen dimension_code'ları al (fallback)
+        let metaQuery = supabase
+          .from('rubric_dimensions')
+          .select('dimension_code, name, description, is_required, sort_order, template_id')
+          .in('dimension_code', codes)
+          .eq('is_active', true)
+
+        if (templateId) {
+          metaQuery = metaQuery.eq('template_id', templateId)
+        }
+
+        const { data: metaRows, error: metaErr } = await metaQuery
+
+        if (metaErr) {
+          console.error('[getSessionReport] rubric_dimensions err:', metaErr)
+        } else {
+          // İlk eşleşeni al (template_id filter aktifse zaten tek satır gelir)
+          for (const row of metaRows ?? []) {
+            if (!metaByCode[row.dimension_code]) {
+              metaByCode[row.dimension_code] = {
+                name: row.name,
+                description: row.description,
+                is_required: !!row.is_required,
+                sort_order: row.sort_order ?? 0,
+              }
+            }
+          }
+        }
+      }
+
+      dimensionScores = (dimRows ?? []).map((r) => ({
+        dimension_code: r.dimension_code,
+        score: r.score,
+        evidence_quotes: r.evidence_quotes,
+        improvement_tip: r.improvement_tip,
+        rationale: r.rationale,
+        name: metaByCode[r.dimension_code]?.name ?? null,
+        description: metaByCode[r.dimension_code]?.description ?? null,
+        is_required: metaByCode[r.dimension_code]?.is_required ?? false,
+        sort_order: metaByCode[r.dimension_code]?.sort_order ?? 99,
+      }))
     }
   }
 
