@@ -17,6 +17,10 @@ function getPeriodStart(period: DashboardPeriod): string | null {
 }
 
 // ── Özet istatistikler ──────────────────────────────────────
+// PARÇALI SORGU pattern'i (EVAL-SCHEMA-MISMATCH-001 öğretisi):
+// PostgREST nested join (evaluations(...)) bazen RLS context'inde sessizce
+// null dönüyor — sessions geliyor ama evaluations array'i boş kalıyor.
+// Çözüm: önce sessions çek, ID'lerle evaluations'ı ayrı çek, kodda eşle.
 export async function getDashboardStats(period: DashboardPeriod = 'all') {
   const currentUser = await getCurrentUser()
   if (!currentUser) return null
@@ -24,25 +28,30 @@ export async function getDashboardStats(period: DashboardPeriod = 'all') {
   const supabase = await createServerClient()
   const since = getPeriodStart(period)
 
-  let query = supabase
+  // 1. Sessions
+  let sessionsQuery = supabase
     .from('sessions')
-    .select(`
-      id, completed_at,
-      evaluations(overall_score)
-    `)
+    .select('id, completed_at')
     .eq('user_id', currentUser.id)
     .in('status', ['completed', 'debrief_completed'])
 
-  if (since) query = query.gte('completed_at', since)
-
-  const { data: sessions } = await query
+  if (since) sessionsQuery = sessionsQuery.gte('completed_at', since)
+  const { data: sessions } = await sessionsQuery
 
   if (!sessions?.length) {
     return { totalSessions: 0, avgScore: null, bestScore: null, completionRate: null }
   }
 
-  const scores = sessions
-    .map((s) => (s.evaluations as any[])?.[0]?.overall_score)
+  // 2. Evaluations (ayrı sorgu, manuel join)
+  const sessionIds = sessions.map((s) => s.id)
+  const { data: evals } = await supabase
+    .from('evaluations')
+    .select('session_id, overall_score, status')
+    .in('session_id', sessionIds)
+    .eq('status', 'completed')
+
+  const scores = (evals ?? [])
+    .map((e) => e.overall_score)
     .filter((s): s is number => s != null)
 
   const avgScore = scores.length
@@ -74,7 +83,7 @@ export async function getDashboardStats(period: DashboardPeriod = 'all') {
   }
 }
 
-// ── Skor trend (son 15 seans) ───────────────────────────────
+// ── Skor trend (son 15 seans) — PARÇALI SORGU ──────────────
 export async function getScoreTrend(period: DashboardPeriod = 'all') {
   const currentUser = await getCurrentUser()
   if (!currentUser) return []
@@ -82,30 +91,48 @@ export async function getScoreTrend(period: DashboardPeriod = 'all') {
   const supabase = await createServerClient()
   const since = getPeriodStart(period)
 
-  let query = supabase
+  // 1. Sessions
+  let sessionsQuery = supabase
     .from('sessions')
-    .select(`
-      id, completed_at,
-      personas(name),
-      evaluations(overall_score)
-    `)
+    .select('id, completed_at, persona_id')
     .eq('user_id', currentUser.id)
     .in('status', ['completed', 'debrief_completed'])
     .order('completed_at', { ascending: true })
     .limit(15)
 
-  if (since) query = query.gte('completed_at', since)
+  if (since) sessionsQuery = sessionsQuery.gte('completed_at', since)
+  const { data: sessions } = await sessionsQuery
+  if (!sessions?.length) return []
 
-  const { data } = await query
-  if (!data) return []
+  // 2. Evaluations + 3. Personas (paralel, ayrı sorgular)
+  const sessionIds = sessions.map((s) => s.id)
+  const personaIds = [...new Set(sessions.map((s) => s.persona_id).filter(Boolean))]
 
-  return data
-    .filter((s) => (s.evaluations as any[])?.[0]?.overall_score != null)
+  const [evalsRes, personasRes] = await Promise.all([
+    supabase
+      .from('evaluations')
+      .select('session_id, overall_score')
+      .in('session_id', sessionIds)
+      .eq('status', 'completed'),
+    personaIds.length > 0
+      ? supabase.from('personas').select('id, name').in('id', personaIds)
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+  ])
+
+  const scoreBySession = new Map(
+    (evalsRes.data ?? []).map((e) => [e.session_id, e.overall_score as number]),
+  )
+  const personaName = new Map(
+    (personasRes.data ?? []).map((p) => [p.id, p.name]),
+  )
+
+  return sessions
+    .filter((s) => scoreBySession.has(s.id))
     .map((s, idx) => ({
       index: idx + 1,
       date: new Date(s.completed_at!).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' }),
-      score: (s.evaluations as any[])[0].overall_score as number,
-      persona: (s.personas as any)?.name ?? '',
+      score: scoreBySession.get(s.id)!,
+      persona: personaName.get(s.persona_id) ?? '',
     }))
 }
 
@@ -170,7 +197,7 @@ export async function getDimensionAverages(period: DashboardPeriod = 'all') {
   }))
 }
 
-// ── Persona başarı karşılaştırması ─────────────────────────
+// ── Persona başarı karşılaştırması — PARÇALI SORGU ─────────
 export async function getPersonaScoreComparison(period: DashboardPeriod = 'all') {
   const currentUser = await getCurrentUser()
   if (!currentUser) return []
@@ -178,30 +205,48 @@ export async function getPersonaScoreComparison(period: DashboardPeriod = 'all')
   const supabase = await createServerClient()
   const since = getPeriodStart(period)
 
-  let query = supabase
+  // 1. Sessions
+  let sessionsQuery = supabase
     .from('sessions')
-    .select(`
-      persona_id,
-      personas(name),
-      evaluations(overall_score)
-    `)
+    .select('id, persona_id')
     .eq('user_id', currentUser.id)
     .in('status', ['completed', 'debrief_completed'])
     .limit(100)
 
-  if (since) query = query.gte('completed_at', since)
+  if (since) sessionsQuery = sessionsQuery.gte('completed_at', since)
+  const { data: sessions } = await sessionsQuery
+  if (!sessions?.length) return []
 
-  const { data } = await query
-  if (!data) return []
+  // 2. Evaluations + 3. Personas paralel
+  const sessionIds = sessions.map((s) => s.id)
+  const personaIds = [...new Set(sessions.map((s) => s.persona_id).filter(Boolean))]
+
+  const [evalsRes, personasRes] = await Promise.all([
+    supabase
+      .from('evaluations')
+      .select('session_id, overall_score')
+      .in('session_id', sessionIds)
+      .eq('status', 'completed'),
+    personaIds.length > 0
+      ? supabase.from('personas').select('id, name').in('id', personaIds)
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+  ])
+
+  const scoreBySession = new Map(
+    (evalsRes.data ?? []).map((e) => [e.session_id, e.overall_score as number]),
+  )
+  const personaName = new Map(
+    (personasRes.data ?? []).map((p) => [p.id, p.name]),
+  )
 
   // Persona bazlı ortalama
   const personaMap = new Map<string, { name: string; scores: number[] }>()
 
-  for (const s of data) {
-    const score = (s.evaluations as any[])?.[0]?.overall_score as number | undefined
+  for (const s of sessions) {
+    const score = scoreBySession.get(s.id)
     if (score == null) continue
 
-    const name = (s.personas as any)?.name ?? s.persona_id
+    const name = personaName.get(s.persona_id) ?? s.persona_id
     let entry = personaMap.get(s.persona_id)
     if (!entry) {
       entry = { name, scores: [] }
@@ -226,20 +271,46 @@ export async function getRecentSessions(limit = 5) {
 
   const supabase = await createServerClient()
 
-  const { data } = await supabase
+  // PARÇALI SORGU — RLS context'inde nested evaluations join'i null döndüğü için
+  const { data: sessions } = await supabase
     .from('sessions')
-    .select(`
-      id, status, completed_at, duration_seconds,
-      personas(name),
-      scenarios(title),
-      evaluations(overall_score)
-    `)
+    .select('id, status, completed_at, duration_seconds, persona_id, scenario_id')
     .eq('user_id', currentUser.id)
     .in('status', ['completed', 'debrief_completed'])
     .order('completed_at', { ascending: false })
     .limit(limit)
 
-  return (data as any[]) ?? []
+  if (!sessions?.length) return []
+
+  const sessionIds = sessions.map((s) => s.id)
+  const personaIds = [...new Set(sessions.map((s) => s.persona_id).filter(Boolean))]
+  const scenarioIds = [...new Set(sessions.map((s) => s.scenario_id).filter(Boolean))]
+
+  const [evalsRes, personasRes, scenariosRes] = await Promise.all([
+    supabase
+      .from('evaluations')
+      .select('session_id, overall_score')
+      .in('session_id', sessionIds)
+      .eq('status', 'completed'),
+    personaIds.length
+      ? supabase.from('personas').select('id, name').in('id', personaIds)
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    scenarioIds.length
+      ? supabase.from('scenarios').select('id, title').in('id', scenarioIds)
+      : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+  ])
+
+  const scoreBy = new Map((evalsRes.data ?? []).map((e) => [e.session_id, e.overall_score]))
+  const personaName = new Map((personasRes.data ?? []).map((p) => [p.id, p.name]))
+  const scenarioTitle = new Map((scenariosRes.data ?? []).map((s) => [s.id, s.title]))
+
+  // RecentSessionsList şu shape'i bekliyor: { evaluations: [{overall_score}], personas:{name}, scenarios:{title} }
+  return sessions.map((s) => ({
+    ...s,
+    evaluations: scoreBy.has(s.id) ? [{ overall_score: scoreBy.get(s.id) }] : [],
+    personas: { name: personaName.get(s.persona_id) ?? null },
+    scenarios: { title: scenarioTitle.get(s.scenario_id) ?? null },
+  }))
 }
 
 // ── Boyut delta (bu ay vs geçen ay) ─────────────────────────
