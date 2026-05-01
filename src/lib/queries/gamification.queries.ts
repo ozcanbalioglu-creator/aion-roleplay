@@ -89,6 +89,34 @@ export async function getUserBadges(limit = 50) {
   return (data as any[]) ?? []
 }
 
+/**
+ * Tamamlanmış görevler — Başarılarım sayfasında "Görev Tamamlamaları" kutusu için.
+ * status = 'completed' — challenge başarıyla bitirilmiş.
+ */
+export async function getCompletedChallenges(limit = 50) {
+  const currentUser = await getCurrentUser()
+  if (!currentUser) return []
+
+  const supabase = await createServerClient()
+
+  const { data, error } = await supabase
+    .from('user_challenges')
+    .select(`
+      id, progress, target_value, status, completed_at, assigned_at,
+      challenges(title, description, challenge_type, xp_reward)
+    `)
+    .eq('user_id', currentUser.id)
+    .eq('status', 'completed')
+    .order('completed_at', { ascending: false, nullsFirst: false })
+    .limit(limit)
+
+  if (error) {
+    console.error('[getCompletedChallenges] err:', error)
+    return []
+  }
+  return (data as any[]) ?? []
+}
+
 export async function getXPHistory(limit = 20) {
   const currentUser = await getCurrentUser()
   if (!currentUser) return []
