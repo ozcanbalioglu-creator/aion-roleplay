@@ -58,7 +58,7 @@ Aşağıdaki hatalar bu sprint içinde tespit edilip giderildi. Detaylar `CLAUDE
 | VAD-002 | Zustand stale state → VAD erken başlatma | ✅ Çözüldü | `src/components/sessions/VoiceSessionClient.tsx` |
 | STT-001 | Safari `audio/mp4` → `recording.webm` Whisper format reddi | ✅ Çözüldü | `src/lib/audio-utils.ts`, STT route+adapter |
 | CHAT-001 | Barge-in abort → session `status='failed'` | ✅ Çözüldü | `src/app/api/sessions/[id]/chat/route.ts` |
-| HISTORY-001 | `session_messages` schema mismatch → AI geçmişi kaybı | ✅ Fix uygulandı — **migration 046 DB'de çalıştırılmalı** | `message.service.ts`, migration 046 |
+| HISTORY-001 | `session_messages` schema mismatch → AI geçmişi kaybı | ✅ Çözüldü (migration 046 staging'de uygulandı, 2026-05-01 doğrulandı) | `message.service.ts`, migration 046 |
 | TTS-001 | Safari chunked MP3 stream → sessiz hata | ✅ Çözüldü | `src/app/api/sessions/[id]/tts/route.ts` |
 | VOICE-001 | Persona `voice_id` DB'de var ama TTS route okumuyor → kadın persona erkek sesle konuşuyor | ✅ Çözüldü | `src/app/api/sessions/[id]/tts/route.ts` |
 | AUDIO-001 | `audio.play() reddedildi` — browser autoplay policy gesture chain bozulması | ✅ Çözüldü (singleton element + `unlock()` pattern) | `src/hooks/useAudioPlayer.ts`, `VoiceSessionClient.tsx` |
@@ -90,7 +90,7 @@ Aşağıdaki hatalar bu sprint içinde tespit edilip giderildi. Detaylar `CLAUDE
 | UX-PERSONA-LAYOUT-001 | Sahne ekranlarında persona meta-verisi yetersiz, sadece foto+name | ✅ PersonaInfoColumn (foto+kartlar: deneyim, persona tipi, zorluk/direnç/işbirliği, senaryo bağlamı, koçluk bağlamı, tetikleyici tag'leri, koçluk ipuçları) | `PersonaInfoColumn.tsx` (yeni), `CinematicPersonaStage.tsx`, `VoiceSessionClient.tsx`, `session.queries.ts`, `sessions/[id]/page.tsx` |
 | ENV-001 | `OPENAI_LLM_MODEL=gpt-5.4` (mevcut değil) → session `failed` | ✅ Kullanıcı `gpt-4o` olarak düzeltti | `.env.local` |
 
-**HISTORY-001 kritik notu:** Migration `20260426_046_session_messages_align.sql` Supabase SQL Editor'da henüz çalıştırılmadıysa AI geçmişi çalışmıyor. Bu, seans kalitesi için en öncelikli bekleyen iştir.
+**HISTORY-001 not:** Migration `20260426_046_session_messages_align.sql` staging DB'de uygulandı (2026-05-01 doğrulandı: `content`, `metadata`, `sequence_number` kolonları aktif). AI geçmişi sağlıklı çalışıyor. Bu blocker artık yok.
 
 **VAD-001 teknik özeti:**
 - Chrome, Web Audio API grafını destination'a bağlı olmadığında optimize edip durduruyor (`MediaStreamAudioSourceNode` sessizleşiyor).

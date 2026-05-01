@@ -168,11 +168,11 @@ Yamalar hafif kalsa da hata yüzeyi büyüyor. Modern alternatifler:
 
 ---
 
-### P1-Schema-001 — Migration 046 Production Apply
+### ~~P1-Schema-001 — Migration 046 Production Apply~~ ✅ TAMAMLANDI (2026-05-01)
 
-**Bağlam:** `20260426_046_session_messages_align.sql` staging'de uygulandı; production'a uygulanmamış. AI konuşma geçmişi için kritik.
+**Durum:** Migration `20260426_046_session_messages_align.sql` staging DB'de uygulandı ve doğrulandı (2026-05-01). `session_messages` tablosu yeni schema ile çalışıyor (`content`, `metadata`, `sequence_number`). AI konuşma geçmişi sağlıklı.
 
-**Aksiyon:** Production deploy zamanı clean-install migration paketinin parçası olarak çalıştırılır. (Zaten yol_haritasi'nda var ama burada da liste edildi.)
+> Production DB'ye geçişte clean-install migration paketinde sırasıyla 001 → 052 hep birlikte çalıştırılacak (separate manuel adım kalmadı).
 
 ---
 
