@@ -33,9 +33,9 @@ SET completed_at = COALESCE(
   END,
   -- 2. cancelled_at (yarıda kesilen seans için)
   cancelled_at,
-  -- 3. updated_at (son çare)
-  updated_at,
-  -- 4. created_at (gerçekten son çare)
+  -- 3. started_at (en azından seans başlama zamanı)
+  started_at,
+  -- 4. created_at (son çare)
   created_at
 )
 WHERE completed_at IS NULL
