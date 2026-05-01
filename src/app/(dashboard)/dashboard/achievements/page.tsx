@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Zap, Trophy } from 'lucide-react'
 import { Leaderboard } from '@/components/dashboard/Leaderboard'
 import { CompletedChallengesGrid } from '@/components/dashboard/CompletedChallengesGrid'
+import { AwardCard } from '@/components/dashboard/AwardCard'
 
 const DEFAULT_PROFILE = {
   xp_points: 0,
@@ -185,44 +186,32 @@ export default async function AchievementsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {userBadges.map((ub) => {
-                const badge = ub.badges as any
-                return (
-                  <div
-                    key={ub.id}
-                    className="group flex flex-col items-center gap-2 p-4 rounded-2xl bg-card border border-border/40 hover:border-amber-500/30 hover:shadow-lg hover:shadow-amber-500/5 transition-all duration-300"
-                  >
-                    <div className="relative h-16 w-16 mb-2">
-                      <div className="absolute inset-0 bg-amber-500/10 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <div className="relative h-full w-full rounded-2xl bg-surface-container-low border border-border/40 flex items-center justify-center text-3xl shadow-sm transition-transform group-hover:scale-110 group-hover:-rotate-3">
-                        {badge?.icon ?? '🏅'}
-                      </div>
-                    </div>
-                    <div className="text-center space-y-0.5">
-                      <p className="text-xs font-bold text-foreground leading-tight">{badge?.name}</p>
-                      <p className="text-[9px] text-muted-foreground line-clamp-2 italic px-1 h-6">
-                        {badge?.description}
-                      </p>
-                    </div>
-                    <div className="mt-2 text-[8px] font-bold uppercase tracking-wider text-muted-foreground/40 border-t border-border/20 pt-2 w-full text-center">
-                      {new Date(ub.earned_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}
-                    </div>
-                  </div>
-                )
-              })}
-
-              {userBadges.length === 0 && (
-                <div className="col-span-full py-20 flex flex-col items-center gap-4 border-2 border-dashed border-border/30 rounded-3xl opacity-50">
-                  <Trophy className="h-10 w-10 text-muted-foreground" />
-                  <p className="text-sm font-medium text-muted-foreground text-center">
-                    Şu an henüz bir rozet kazanmadın.
-                    <br />
-                    Seanslara devam ederek koleksiyonunu oluştur!
-                  </p>
-                </div>
-              )}
-            </div>
+            {userBadges.length === 0 ? (
+              <div className="py-20 flex flex-col items-center gap-4 border-2 border-dashed border-border/30 rounded-3xl opacity-50">
+                <Trophy className="h-10 w-10 text-muted-foreground" />
+                <p className="text-sm font-medium text-muted-foreground text-center">
+                  Şu an henüz bir rozet kazanmadın.
+                  <br />
+                  Seanslara devam ederek koleksiyonunu oluştur!
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {userBadges.map((ub) => {
+                  const badge = ub.badges as any
+                  return (
+                    <AwardCard
+                      key={ub.id}
+                      icon={badge?.icon ?? '🏅'}
+                      name={badge?.name ?? 'Rozet'}
+                      description={badge?.description ?? ''}
+                      date={ub.earned_at}
+                      xpReward={badge?.xp_reward}
+                    />
+                  )
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
 
