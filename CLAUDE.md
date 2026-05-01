@@ -4,9 +4,75 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
+## Hata Kaydı — 2026-05-01 (PR #1 Test Geri Bildirimi Düzeltmeleri)
+
+> **Bekleyen iş:** F4 (Dashboard + Gelişimim birleştirme) post-launch'a aktarıldı; **font tutarsızlığı kritik nokta** olarak işaretlendi (Dashboard fontu standart). F2 (sesli rapor + transkript), F3 (AI insights), B1 (header FOUC derinlemesine fix) post-launch listede.
+
+### DASHBOARD-EVAL-JOIN-001 — Nested evaluations join'i RLS'de null dönüyordu (ÇÖZÜLDÜ ✅)
+
+**Bağlam:** Migration 051 (completed_at backfill) sonrası "Tamamlanan Seans" doğru sayılıyor (15) ama "Ort. Koçluk Puanı / Skor Trendi / Persona Bazlı Başarı" boş. SQL Editor'da kullanıcının 6 evaluation'ı görünüyor (overall_score 2.6-3.8, status=completed, user_id_match=true).
+
+**Kök neden:** PostgREST nested join `evaluations(overall_score)` RLS context'inde sessizce null array döndürüyor. EVAL-SCHEMA-MISMATCH-001 + USER-BADGES-MISSING-001 ile aynı pattern. RLS policy `evaluations_own` (`user_id = auth.uid()`) doğru tanımlı ama nested embed bypass ediyor.
+
+**Fix:** `dashboard.queries.ts`'in 4 fonksiyonu **parçalı sorgu** pattern'ine geçirildi:
+- `getDashboardStats`: sessions ayrı çek → sessionIds ile evaluations çek → kodda `Map`'le birleştir
+- `getScoreTrend`: sessions + evaluations + personas paralel sorgu
+- `getPersonaScoreComparison`: aynı pattern
+- `getRecentSessions`: sessions + evaluations + personas + scenarios paralel + UI shape uyumlu mock array (`evaluations: [{overall_score}]`)
+
+`getDimensionAverages` zaten parçalı sorgu kullanıyordu, etkilenmedi.
+
+**Mimari kazanım:** "Nested PostgREST join + RLS = sessizce null" — bu pattern artık dokümante edilmiş ve `lib/queries/evaluation.queries.ts` + `dashboard.queries.ts`'de defansif şekilde uygulanmış. Yeni query yazılırken aynı tuzağa düşülmemeli.
+
+**İlgili dosyalar:** `src/lib/queries/dashboard.queries.ts` (commit `262096e`)
+
+---
+
+### COMPLETED-AT-NULL-001 — endSessionAction completed_at set etmiyordu (ÇÖZÜLDÜ ✅)
+
+**Kök neden:** `endSessionAction` 'debrief_active' geçişinde sadece `status` ve `duration_seconds` set ediyordu; `completed_at` NULL kalıyordu. `finishDebriefAction` debrief tamam olunca set ediyor ama kullanıcı debrief'i atlarsa NULL kalır.
+
+Sonuç: tüm dashboard query'leri `gte('completed_at', since)` ve `order('completed_at')` kullandığı için NULL satırları sessizce eliyordu → "Tamamlanan Seans=0", "Ort. Puan=—", boş grafikler.
+
+**Fix (iki katman):**
+
+1. **`endSessionAction`'a `completed_at: new Date().toISOString()` eklendi** — kullanıcı debrief'i atlasa bile timestamp set olur (commit `8a50863`).
+
+2. **Migration 051** — mevcut NULL satırlar için backfill:
+   ```sql
+   UPDATE sessions
+   SET completed_at = COALESCE(
+     started_at + (duration_seconds || ' seconds')::interval,
+     cancelled_at,
+     started_at,
+     created_at
+   )
+   WHERE completed_at IS NULL AND status IN (...)
+   ```
+   - İlk denemede `evaluation_failed` enum hatası — sessions.status enum'unda yok, `evaluations.status`'ta. Çıkarıldı.
+   - İkinci denemede `updated_at` kolonu yok hatası — sessions tablosunda updated_at yok. `started_at` fallback'le değiştirildi.
+
+**Bonus:** Migration 050 — `user_persona_stats` VIEW eski hâliyle sadece `s.status = 'completed'` filter ediyordu. `debrief_completed` dahil edilerek persona "İlk Kez X" filtresi düzeltildi.
+
+**İlgili dosyalar:** `src/lib/actions/session.actions.ts`, `supabase/migrations/20260430_050_*.sql`, `supabase/migrations/20260501_051_*.sql`
+
+---
+
+### REPO-ORPHAN-SUBMODULE-001 — Vercel "Failed to fetch git submodules" warning'i (ÇÖZÜLDÜ ✅)
+
+**Kök neden:** Önceki bir Claude oturumu (`frosty-hofstadter-455f28`) yanlışlıkla `.claude/worktrees/` klasörünü submodule (mode 160000) olarak commit etmiş. Worktree fiziksel olarak yok ama git history'de referans kalmış → Vercel her build'de submodule fetch yapmaya çalışıp uyarı veriyordu.
+
+**Fix:** `git rm --cached .claude/worktrees/frosty-hofstadter-455f28` (commit `301d61e`). `.gitignore` zaten `.claude/worktrees/` kapsıyor — yeni eklemeler engelli.
+
+**Mimari not:** Worktree'ler iz bırakmamalı. `.gitignore`'da explicit yer alıyor; Claude Code worktree açtığında yanlışlıkla `git add .` yapmayalım — pre-commit hook eklemek değerlendirilebilir (post-launch).
+
+**İlgili dosyalar:** `.gitignore` (zaten doğru)
+
+---
+
 ## Hata Kaydı — 2026-04-30 (Rapor Mimarisi + Bağlı Düzeltmeler)
 
-> **Bekleyen iş:** PR #1 sonrası test sırasında 9 ek tespit yapıldı (FOUC overlay, "Bu hafta seans yok" yanlış uyarı, persona "İlk Kez" filtresi yanlış sayaç, Dashboard KPI stale, XP→DP terminoloji, Tenant→Kurum UI dönüşümü, Gelişimim sayfası boş, sesli rapor metin gösterimi, AI insights). Detay: [`Gelistirme23Nisan/pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md`](Gelistirme23Nisan/pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md).
+> **Bekleyen iş:** PR #1 sonrası test sırasında 9 ek tespit yapıldı. Detay: [`Gelistirme23Nisan/pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md`](Gelistirme23Nisan/pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md). 2026-05-01'de büyük çoğunluğu çözüldü; F4 (Dashboard+Gelişimim birleştirme), F2 (sesli rapor metin), F3 (AI insights), B1 (header FOUC derinlemesine) post-launch'a aktarıldı.
 
 ### USER-BADGES-MISSING-001 — Rozetler Hiç Verilmiyordu (4 KATMAN, ÇÖZÜLDÜ ✅)
 

@@ -10,17 +10,18 @@
 
 ## Öncelik Tablosu
 
-| Kod | Başlık | Öncelik | Tahmini Süre |
+| Kod | Başlık | Öncelik | Durum |
 |---|---|---|---|
-| B1 | Dashboard MobileNav overlay (FOUC fix yetmedi) | 🔴 P0 | 30 dk |
-| B2 | "Bu hafta seans tamamlamadınız" yanlış uyarı | 🔴 P1 | 20 dk |
-| B3 | Persona "İlk Kez 5" filtresi yanlış sayaç | 🔴 P1 | 30 dk |
-| B4 | Dashboard KPI'lar güncellenmemiş veya statik | 🟡 P1 | 1-2 saat |
-| U1 | XP → "Deneyim Puanı" / "DP" terminoloji dönüşümü | 🟡 P1 | 2-3 saat |
-| U2 | "Tenant" → "Kurum" UI metin dönüşümü | 🟡 P1 | 1-2 saat |
-| F1 | Gelişimim sayfası içerik genişletme | 🟢 P2 | 1 gün |
-| F2 | Sesli rapor + transkript metin gösterimi | 🟢 P2 | 3-4 saat |
-| F3 | Dashboard AI yorumları (insights) | 🔵 R&D | Post-launch |
+| B1 | Dashboard MobileNav overlay (FOUC fix yetmedi) | 🔴 P0 | ⚠️ Header'da kısmi flash kaldı (cache temizleyince geçiyor) |
+| B2 | "Bu hafta seans tamamlamadınız" yanlış uyarı | 🔴 P1 | ✅ ÇÖZÜLDÜ (commit `6eb4925`) |
+| B3 | Persona "İlk Kez 5" filtresi yanlış sayaç | 🔴 P1 | ✅ ÇÖZÜLDÜ (Migration 050) |
+| B4 | Dashboard KPI'lar güncellenmemiş veya statik | 🟡 P1 | ✅ ÇÖZÜLDÜ (parçalı sorgu + Migration 051 backfill) |
+| U1 | XP → "Deneyim Puanı" / "DP" terminoloji dönüşümü | 🟡 P1 | ✅ ÇÖZÜLDÜ (commit `4254669`) |
+| U2 | "Tenant" → "Kurum" UI metin dönüşümü | 🟡 P1 | ✅ ÇÖZÜLDÜ (commit `4254669`) |
+| F1 | Gelişimim sayfası içerik genişletme | 🟢 P2 | F4 ile birleştirildi → post-launch |
+| F2 | Sesli rapor + transkript metin gösterimi | 🟢 P2 | ⏳ Post-launch |
+| F3 | Dashboard AI yorumları (insights) | 🔵 R&D | ⏳ Post-launch |
+| **F4** | **Dashboard + Gelişimim sayfa birleştirme** | 🟡 **P1 post-launch** | ⏳ Post-launch |
 
 ---
 
@@ -213,24 +214,100 @@
 
 ---
 
+### F4 — Dashboard + Gelişimim Sayfa Birleştirme (POST-LAUNCH)
+
+**Bağlam (2026-05-01 tespiti):** Mevcut iki sayfa **%70 örtüşüyor** — kullanıcı için "veri için neresi?" sorusu cognitive yük yaratıyor. Aşağıdaki widget'lar her iki sayfada da var:
+
+| Widget | Dashboard | Gelişimim |
+|---|---|---|
+| Toplam DP, Seviye | ✅ | ✅ (tekrar) |
+| Tamamlanan Seans | ✅ | ✅ |
+| Ortalama Puan | ✅ | ✅ |
+| Skor Trendi grafiği | ✅ | ✅ |
+| Boyut Radar | ✅ | ✅ |
+
+Sadece bir sayfada bulunanlar:
+- Dashboard: Persona Bazlı Başarı, Aylık Kıyas (DimensionProgressCards), Haftalık Görevler
+- Gelişimim: Yarıda Bırakılan Seanslar, Gelişim Yolculuğu (full)
+
+**Önerilen mimari (tek "Dashboard" sayfası):**
+
+```
+Dashboard (/dashboard)
+├─ ÜSTTE: Stat kartları (Tamamlanan, Ort. Puan, DP, Streak)
+├─ ORTADA: Aktivite — Skor Trendi + Persona Bazlı + Son Seanslar
+├─ ALTTA: Gelişim — Boyut Radar + Aylık Kıyas + Boyut Detay Tablosu (Rubric KPI)
+├─ YANDA: Hedefler — Haftalık Görevler + Gelişim Planı + Yarıda Bırakılanlar
+```
+
+`/dashboard/progress` (Gelişimim) sidebar'dan kaldırılır. Eski URL → `/dashboard`'a redirect.
+
+**⚠️ KRİTİK NOT — FONT TUTARSIZLIĞI (2026-05-01 tespit):**
+
+Dashboard ve Gelişimim sayfalarında kullanılan font'lar **şu an aynı değil**. Mesela:
+- Dashboard: başlıklar `font-headline` italic + body `font-body`
+- Gelişimim: bazı yerlerde farklı font ailesi/ağırlık karışımı
+
+**Birleştirme yaparken Dashboard sayfasının font sistemine geçirilmeli.** Karışık kullanım kaldırılmalı:
+- Page title: `font-headline italic`
+- Section başlık: `font-headline`
+- Stat label: `font-body uppercase tracking-wider text-[10px] font-bold`
+- Veri/sayı: `font-body tabular-nums`
+- Body metin: `font-body`
+
+Birleştirme PR'ında acceptance criteria: **"Tüm widget'lar aynı font sistemini kullanıyor (Dashboard'unkiyle uyumlu)"**.
+
+**Aksiyon:**
+1. `dashboard/progress/page.tsx`'in widget'larını `dashboard/page.tsx`'e taşı
+2. `WeeklyChallengesWidget`, `DevelopmentPlanWidget` zaten paylaşılan
+3. `CancellationStatsWidget` (Yarıda Bırakılan) Dashboard'a ekle
+4. `dashboard/progress/page.tsx` → `redirect('/dashboard')`
+5. `navigation.ts`'ten "Gelişimim" sidebar item'ını kaldır
+6. Mobil navigasyon (`MobileNav`) "Gelişim" → "Ana Sayfa" linkine yönlensin
+7. Tüm widget font'larını Dashboard'unkiyle hizala
+
+**Acceptance:**
+- Tek sayfa görüntüsünde tüm gelişim verileri var
+- "Gelişimim" linkine tıklayan kullanıcı `/dashboard`'a düşer
+- Sayfa scroll uzunluğu makul (mobile'da tab/accordion düşünülebilir)
+- Font sistemi homojen (Dashboard standardı)
+
+**Tahmini süre:** 2-3 saat (refactor + font hizalama + test)
+
+**Önkoşul:** Lansman sonrası en az 1 hafta gerçek kullanım — kullanıcılar mevcut akışa alıştıktan sonra birleştirme yapılırsa "kayıp" hissini minimize eder.
+
+---
+
 ## 🔵 R&D — Karar Bekleyen
 
-### F3 — Dashboard AI Insights (yukarıdaki F3)
-### F4 — Sesli rapor karaoke-style sync (yukarıdaki F2 ileri seviye)
+### F5 — Sesli rapor karaoke-style sync (F2 ileri seviye)
+### F6 — Dashboard AI Insights derinleştirme (F3 üstüne kuruluyor)
 
 ---
 
 ## Eylem Sıralaması
 
-**Bu sprint (1 Mayıs öncesi son rötuş):**
-1. B1 (overlay) — 30 dk
-2. B2 (haftalık sayaç) — 20 dk
-3. B4 (Dashboard KPI) — 1-2 saat
+**Bu sprint (1 Mayıs canlı yayın öncesi) — TÜMÜ TAMAMLANDI ✅:**
+- ✅ B2 — Seanslarım haftalık sayaç (commit `6eb4925`)
+- ✅ B3 — Persona "İlk Kez 5" filtresi + Migration 050 (commit `6eb4925` + migration)
+- ✅ B4 — Dashboard KPI'lar + Migration 051 + parçalı evaluations sorgusu (commit'ler `6eb4925`, `8a50863`, `056e1dc`, `262096e`)
+- ✅ U1 — XP → DP terminoloji (commit `4254669`)
+- ✅ U2 — Tenant → Kurum UI metin (commit `4254669`)
+- ✅ Dashboard radar — rapor stiline geçirildi (commit `adb4328`)
+- ✅ Aylık Kıyas tam genişlik (commit `8a50863`)
+- ✅ DimensionRadarChart iki renk → tek renk mor (commit `adb4328`)
+- ✅ Landing page asset'leri eklendi (commit `c864b34`)
+- ✅ Orphan worktree submodule referansı temizlendi (commit `301d61e`)
+- ⚠️ B1 (Header FOUC) — kısmi: full overlay flash gitti, header'da hafif kısmi flash kaldı (post-launch derinlemesine)
 
-**1 Mayıs sonrası ilk hafta:**
-4. B3 (persona filtresi) — 30 dk
-5. U1 (XP → DP) — 2 saat
-6. U2 (Tenant → Kurum) — 1-2 saat
+**Lansman sonrası ilk 2 hafta (P1 post-launch):**
+- F4 — Dashboard + Gelişimim birleştirme **(font tutarsızlığı kontrol edilerek)** — 2-3 saat
+- F2 — Sesli rapor + transkript metin gösterimi — 3-4 saat
+
+**Lansman sonrası ilk ay (P2/P3):**
+- F1 — Gelişimim içerik (F4 ile birleştirildi, F4'ün kapsamına alındı)
+- F3 — Dashboard AI insights — Phase 3 R&D
+- B1 — Header FOUC derinlemesine fix — CSS critical inline yaklaşımı denenebilir
 
 **Lansman sonrası ilk ay:**
 7. F1 (Gelişimim içerik) — 1 gün

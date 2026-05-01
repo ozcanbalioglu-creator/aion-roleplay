@@ -1,6 +1,8 @@
 # Post-Launch İyileştirmeler — Yapılacaklar Listesi
 
-> **GÜNCELLEME 2026-04-30:** PR #1 (rapor mimarisi + landing page) Vercel preview'de test edildiğinde 9 yeni iş kalemi tespit edildi. Detaylı liste: [`pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md`](pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md). Bunlardan B1/B2/B4 P0/P1 olarak sprint'e dahil; U1/U2/F1/F2 post-launch'a aktarıldı.
+> **GÜNCELLEME 2026-04-30:** PR #1 (rapor mimarisi + landing page) Vercel preview'de test edildiğinde 9 yeni iş kalemi tespit edildi. Detaylı liste: [`pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md`](pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md).
+>
+> **GÜNCELLEME 2026-05-01 (sprint sonu):** B2/B3/B4/U1/U2 + radar redesign + asset'ler + parçalı sorgu refactor (10 commit) tamamlandı. **F4 (Dashboard+Gelişimim birleştirme)** post-launch P1'e eklendi — font tutarsızlığı kritik nokta olarak işaretlendi.
 
 **Hazırlık tarihi:** 2026-04-27
 **Bağlam:** 1 Mayıs 2026 launch sonrası dönem için biriktirilen iyileştirme önerileri.
@@ -21,6 +23,44 @@
 ---
 
 ## 🔴 P1 — İlk 2 Hafta İçinde
+
+### P1-UX-001 — Dashboard + Gelişimim Sayfa Birleştirme (F4)
+
+**Bağlam:** Dashboard ve Gelişimim sayfaları yaklaşık %70 örtüşüyor (Toplam DP, Tamamlanan Seans, Ort. Puan, Skor Trendi, Boyut Radar her iki sayfada da var). Kullanıcı için "veri için neresi?" cognitive yükü yaratıyor.
+
+**Çözüm:** Tek "Dashboard" sayfası altında üç katmanlı bilgi mimarisi:
+- ÜSTTE: Stat kartları (Tamamlanan, Ort. Puan, DP, Streak)
+- ORTADA: Aktivite (Skor Trendi + Persona Bazlı + Son Seanslar)
+- ALTTA: Gelişim (Radar + Aylık Kıyas + Boyut Detay) + Yarıda Bırakılanlar
+- YANDA: Hedefler (Haftalık Görevler + Gelişim Planı)
+
+`/dashboard/progress` sidebar'dan kaldırılır, eski URL `/dashboard`'a redirect.
+
+**⚠️ KRİTİK NOT — FONT TUTARSIZLIĞI:**
+Dashboard ve Gelişimim sayfaları şu an **farklı font sistemleri** kullanıyor (başlık ve gövde fontları farklı uygulanmış). Birleştirme yaparken **Dashboard fontu standart kabul edilmeli**, tüm widget'lar bu sistemi kullanmalı:
+- Page title: `font-headline italic`
+- Section başlık: `font-headline`
+- Stat label: `font-body uppercase tracking-wider text-[10px] font-bold`
+- Veri/sayı: `font-body tabular-nums`
+- Body metin: `font-body`
+
+Acceptance: "Tüm widget'lar Dashboard font sistemi ile uyumlu görünüyor."
+
+**Aksiyon:**
+1. `dashboard/progress/page.tsx` widget'larını `dashboard/page.tsx`'e taşı
+2. `CancellationStatsWidget` (Yarıda Bırakılan) Dashboard'a ekle
+3. `dashboard/progress/page.tsx` → `redirect('/dashboard')`
+4. `navigation.ts`'ten "Gelişimim" sidebar item'ını kaldır
+5. Mobil nav (`MobileNav`) "Gelişim" → "Ana Sayfa" yönlendirmesini güncelle
+6. **Tüm widget font'larını Dashboard standardına hizala** (en kritik adım)
+
+**Tahmini süre:** 2-3 saat
+
+**Önkoşul:** Lansman sonrası en az 1 hafta gerçek kullanım — kullanıcılar mevcut akışa alıştıktan sonra birleştirme yapılırsa "kayıp" hissini minimize eder.
+
+**Detaylı plan:** [`pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md`](pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md) → F4
+
+---
 
 ### P1-Voice-001 — STT Servisi Upgrade Değerlendirmesi
 
