@@ -56,7 +56,7 @@ export async function getActiveSessionData(sessionId: string) {
     .from('sessions')
     .select(`
       id, status, phase, session_mode, started_at, completed_at, cancelled_at, created_at,
-      personas(id, name, title, department, experience_years, growth_type, personality_type, resistance_level, cooperativeness, difficulty, avatar_image_url, coaching_tips, coaching_context, trigger_behaviors, emotional_baseline),
+      personas(id, name, title, department, experience_years, growth_type, personality_type, resistance_level, cooperativeness, difficulty, avatar_image_url, coaching_tips, coaching_context, trigger_behaviors, emotional_baseline, opening_directive),
       scenarios(id, title, difficulty_level, estimated_duration_min, target_skills, context_setup),
       evaluations(id, overall_score)
     `)

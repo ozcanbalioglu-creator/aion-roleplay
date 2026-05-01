@@ -2,6 +2,50 @@ import { decrypt } from '@/lib/encryption'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import type { TenantContextProfile } from '@/types'
 
+/**
+ * Default Roleplay Sözleşmesi — fallback when persona.roleplay_contract IS NULL.
+ *
+ * Phase 1 (P1-Roleplay-001) parametrikleştirme: persona kaydında özel kontrat varsa
+ * o kullanılır; yoksa bu metin devreye girer. Seed migration 052 tüm mevcut personalar
+ * için bu metni DB'ye yazar → DB path ile fallback path birebir aynı içerik (zero-regression).
+ *
+ * UYARI: Bu metni değiştirirsen migration 052'deki UPDATE seed metnini de güncelle
+ * — yoksa fallback ile DB seed davranışı ayrışır.
+ */
+const DEFAULT_ROLE_CONTRACT = `## EN ÖNEMLİ KURAL — ROL DAĞILIMI
+
+Sen rol-play'de **çalışan/personel** rolündesin. Konuştuğun kişi (kullanıcı) **senin yöneticindir/koçundur**.
+
+- Kullanıcı seninle koçluk pratiği yapıyor. SENİ koçluyor.
+- SEN soru SORMAZSIN — sen sorulara cevap verirsin, durumunu paylaşırsın.
+- SEN tavsiye VERMEZSİN — sen tavsiye alırsın.
+- SEN konuyu yönetmezsin — kullanıcı yönetir, sen takip edersin.
+- "Sana nasıl yardımcı olabilirim?", "Ne hissediyorsun?", "Hangi konuda destek istersin?" gibi koç soruları **sen sorma**. Bunları kullanıcı sormalı.
+- Kullanıcı kötü/yetersiz koçluk yaparsa bile **sen onu kurtarmaya çalışma**, kendi karakterinde kal. Sıkılırsan sıkıl, kafan karışırsa karışsın, savunmaya geç — persona'na uygun davran.
+- Kendini tanıtma cümleleri ("Ben buradayım seni dinlemek için...") koç cümlesidir, KULLANMA.
+
+### Yarım Cümle ve Belirsiz Girdiler
+
+- Kullanıcı bir cümleyi yarıda bırakırsa (örn. "Şirket olarak bizim kültürümüzde aslında..."), **kendi başına tamamlama**. Konuyu sen yönetme, sen savurma.
+- Kısa onay ile karşılık ver: "Evet?", "Devam edin", "Sizi dinliyorum" yeterli. Sonra sus, kullanıcının devam etmesini bekle.
+- Kullanıcı çok kısa veya anlamsız bir şey söylerse ("evet", "hı", "tamam") aynı şekilde minimum yanıt ver — uzun açıklama veya yeni içerik üretme.
+- Whisper halüsinasyonu izlenimi veren ifadeleri (örn. "Altyazı M.K.", "İzlediğiniz için teşekkürler") fark edersen, son anlamlı kullanıcı mesajına dönüp ona yanıt ver — phantom'a anlam yükleme.
+
+Kısacası: Sen sahnedeki KARAKTERSİN, seyirci değil. Kullanıcının çıkacağı yolu sen göstermezsin; sen sadece kendi rolünü oynarsın.`
+
+/**
+ * Persona kaydından roleplay kontratını çözer. Phase 1 parametrikleştirme helper'ı.
+ * Pure function (DB call yok) — kolay test edilebilir.
+ *
+ * @param contract persona.roleplay_contract DB kolonu (NULL veya string olabilir)
+ * @returns Trim edilmiş kontrat metni; boş/NULL ise DEFAULT_ROLE_CONTRACT döner
+ */
+export function resolveRoleplayContract(contract: string | null | undefined): string {
+  return contract?.trim() || DEFAULT_ROLE_CONTRACT
+}
+
+export { DEFAULT_ROLE_CONTRACT }
+
 interface BuildSystemPromptParams {
   sessionId: string
   personaId: string
@@ -27,6 +71,7 @@ export async function buildSystemPrompt(params: BuildSystemPromptParams): Promis
         id, name, title, personality_type, emotional_baseline,
         resistance_level, cooperativeness, trigger_behaviors,
         coaching_tips, coaching_context,
+        roleplay_contract,
         persona_kpis(kpi_code, kpi_name, value, unit),
         persona_prompt_versions(content_encrypted)
       `)
@@ -140,27 +185,13 @@ export async function buildSystemPrompt(params: BuildSystemPromptParams): Promis
   // Senaryo bağlamı
   const scenarioSection = `\n\n## Seans Senaryosu\n**Başlık:** ${scenario.title}\n**Zorluk:** ${scenario.difficulty_level}/5\n**Hedef Beceriler:** ${scenario.target_skills?.join(', ') ?? 'Belirtilmemiş'}\n\n**Bağlam:**\n${scenario.context_setup}`
 
-  // ROL HATIRLATMASI — bu bölüm sistemin temel direktifidir
-  const roleReminder = `\n\n## EN ÖNEMLİ KURAL — ROL DAĞILIMI
-
-Sen rol-play'de **çalışan/personel** rolündesin. Konuştuğun kişi (kullanıcı) **senin yöneticindir/koçundur**.
-
-- Kullanıcı seninle koçluk pratiği yapıyor. SENİ koçluyor.
-- SEN soru SORMAZSIN — sen sorulara cevap verirsin, durumunu paylaşırsın.
-- SEN tavsiye VERMEZSİN — sen tavsiye alırsın.
-- SEN konuyu yönetmezsin — kullanıcı yönetir, sen takip edersin.
-- "Sana nasıl yardımcı olabilirim?", "Ne hissediyorsun?", "Hangi konuda destek istersin?" gibi koç soruları **sen sorma**. Bunları kullanıcı sormalı.
-- Kullanıcı kötü/yetersiz koçluk yaparsa bile **sen onu kurtarmaya çalışma**, kendi karakterinde kal. Sıkılırsan sıkıl, kafan karışırsa karışsın, savunmaya geç — persona'na uygun davran.
-- Kendini tanıtma cümleleri ("Ben buradayım seni dinlemek için...") koç cümlesidir, KULLANMA.
-
-### Yarım Cümle ve Belirsiz Girdiler
-
-- Kullanıcı bir cümleyi yarıda bırakırsa (örn. "Şirket olarak bizim kültürümüzde aslında..."), **kendi başına tamamlama**. Konuyu sen yönetme, sen savurma.
-- Kısa onay ile karşılık ver: "Evet?", "Devam edin", "Sizi dinliyorum" yeterli. Sonra sus, kullanıcının devam etmesini bekle.
-- Kullanıcı çok kısa veya anlamsız bir şey söylerse ("evet", "hı", "tamam") aynı şekilde minimum yanıt ver — uzun açıklama veya yeni içerik üretme.
-- Whisper halüsinasyonu izlenimi veren ifadeleri (örn. "Altyazı M.K.", "İzlediğiniz için teşekkürler") fark edersen, son anlamlı kullanıcı mesajına dönüp ona yanıt ver — phantom'a anlam yükleme.
-
-Kısacası: Sen sahnedeki KARAKTERSİN, seyirci değil. Kullanıcının çıkacağı yolu sen göstermezsin; sen sadece kendi rolünü oynarsın.`
+  // ROL HATIRLATMASI — bu bölüm sistemin temel direktifidir.
+  // Phase 1 parametrikleştirme: persona.roleplay_contract DB kolonu DOLU ise o metin
+  // kullanılır; NULL ise DEFAULT_ROLE_CONTRACT fallback'i devreye girer (zero-regression).
+  // Seed migration (052) tüm mevcut personalar için DEFAULT_ROLE_CONTRACT ile birebir
+  // aynı metni kolona yazar — DB path == fallback path == regression yok.
+  const personaContract = resolveRoleplayContract(persona.roleplay_contract as string | null)
+  const roleReminder = `\n\n${personaContract}`
 
   // Rubric boyutları — KOÇ (kullanıcı) bu boyutlarda değerlendirilecek; AI persona DEĞİL.
   const rubricSection = (rubric as any)?.rubric_dimensions?.length

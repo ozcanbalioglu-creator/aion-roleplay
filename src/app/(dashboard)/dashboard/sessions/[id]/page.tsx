@@ -102,6 +102,7 @@ export default async function SessionPage({ params }: SessionPageProps) {
     estimatedDuration: scenario?.estimated_duration_min ?? 20,
     initialPhase: 'opening' as const,
     userName: firstName,
+    openingDirective: (persona?.opening_directive as string | null) ?? null,
   }
 
   return <VoiceSessionClient {...commonProps} />

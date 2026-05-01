@@ -3,6 +3,17 @@
 > **GÜNCELLEME 2026-04-30:** PR #1 (rapor mimarisi + landing page) Vercel preview'de test edildiğinde 9 yeni iş kalemi tespit edildi. Detaylı liste: [`pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md`](pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md).
 >
 > **GÜNCELLEME 2026-05-01 (sprint sonu):** B2/B3/B4/U1/U2 + radar redesign + asset'ler + parçalı sorgu refactor (10 commit) tamamlandı. **F4 (Dashboard+Gelişimim birleştirme)** post-launch P1'e eklendi — font tutarsızlığı kritik nokta olarak işaretlendi.
+>
+> **GÜNCELLEME 2026-05-01 (cleanup):** Tamamlanmış P2 maddeler bu listeden kaldırıldı:
+> - `P2-UX-001` (Senaryo seçim sidebar gap) → çözüldü olarak `UX-SIDEBAR-GAP-001`
+> - `P2-UX-002` (Voice session redesign) → çözüldü olarak `UX-VOICE-LAYOUT-001`
+> - Bonus: `UX-PERSONA-LAYOUT-001` (PersonaInfoColumn) belge dışında planlanıp uygulandı
+>
+> Kalıcı log: `CLAUDE.md` → "Hata Kaydı — Sesli Seans Katmanı".
+>
+> **GÜNCELLEME 2026-05-01 (P2-Cost-001 UI netleştirme):** Super admin maliyet dashboard'unun temel görünümü tenant tablosu (Kurum Adı | LLM | STT | TTS | Toplam) + satır click ile expandable kullanıcı sub-table olarak spec edildi. Detay: `P2-Cost-001 → Hedeflenen Görünümler`.
+>
+> **GÜNCELLEME 2026-05-01 (P1-Roleplay-002 eklendi):** Test sırasında tespit edildi: senaryo bağlamı persona system_prompt'u tarafından eziliyor (Aylin Çelik + "İlk Sunum Heyecanı" → A sınıfı doktor konusu açıldı). Hard-code değil, prompt mimarisi sorunu. Üç çözüm yolu (data hygiene / structural / Phase 2 mimari ayrımı) listelendi.
 
 **Hazırlık tarihi:** 2026-04-27
 **Bağlam:** 1 Mayıs 2026 launch sonrası dönem için biriktirilen iyileştirme önerileri.
@@ -96,6 +107,64 @@ Yamalar hafif kalsa da hata yüzeyi büyüyor. Modern alternatifler:
 **Özet:** Mevcut hard-coded `roleReminder` `system-prompt.builder.ts`'te. Persona kaydına 2 yeni opsiyonel kolon (`roleplay_contract`, `opening_directive`) eklenir. Backward-compatible fallback ile zero-regression.
 
 **Tahmini süre:** ~4.5 saat
+
+---
+
+### P1-Roleplay-002 — Senaryo Bağlamı Persona System Prompt'u Tarafından Eziliyor
+
+**Bağlam (2026-05-01 test):** Aylin/Selin Çelik personasıyla "İlk Sunum Heyecanı" senaryosu seçildi. Senaryo açıklaması: "ertesi gün yönetim kuruluna sunum yapılacak, sunum heyecanı için koçluk." Ancak seans başlayınca persona "A sınıfı doktorlardan randevu alamıyorum, bu yüzden reçete yazılmıyor" konusunu açtı — senaryo tamamen iptal oldu.
+
+**Hard-code değil — prompt mimarisi sorunu.** Sistem prompt birleşim sırası ([system-prompt.builder.ts:233](src/lib/session/system-prompt.builder.ts:233)):
+
+```
+1. decryptedPersonaPrompt    ← admin form'unda yazılan ZENGİN backstory (~1500-3000 tok)
+2. roleplay_contract          ← Phase 1 parametrik kontrat
+3. tenant context
+4. scenario.role_context      ← persona-spesifik seans durumu (OPSİYONEL)
+5. persona behavior params
+6. kpi
+7. scenario.context_setup     ← senaryo bağlamı (yöneticinin görüş açısı)
+8. rubric
+9. phase directives
+```
+
+İki ayrı kök neden olası:
+
+**A) Persona system_prompt'u senaryo-spesifik durum içeriyor** — Süper admin Aylin'i oluştururken `persona_prompt_versions.content_encrypted`'a "A sınıfı doktor zorluğu, redden korkma..." gibi kalıcı dertler yazmış. Bu metin en başta + en uzun → LLM persona'nın kalıcı backstory'sine kilitleniyor, senaryo 7. sırada zayıf kalıyor.
+
+**B) Yeni senaryonun `role_context` alanı boş** — Migration seed'deki 3 Selin senaryosunda `role_context` çok detaylı dolu, ama admin panelden eklenen yeni senaryolarda kullanıcı bu alanı boş bırakabilir. Builder boş gördüğünde persona seans-spesifik durumu öğrenmiyor → kendi backstory'sine geri dönüyor.
+
+**Çözüm yolları (ÖNCELIK SIRASIYLA):**
+
+#### Yol 1 (P3 — Veri Hijyeni) — Dokümantasyon + Form UX
+- Senaryo edit form'unda "Persona Rol Bağlamı" alanına **zorunlu olmasa da güçlü bir hint** ekle: "BU ALANI BOŞ BIRAKMA — persona'nın bu seansda hangi spesifik durumu yaşadığını yaz. Boş bırakırsan persona kendi kalıcı backstory'sine geri döner."
+- Süper admin onboarding kitabına persona prompt yazma rehberi: "Persona prompt = karakter özellikleri (kalıcı). Senaryo role_context = şu anki durum (geçici). İkisini karıştırma."
+- **Süre:** 30 dk (form helper text + onboarding doc)
+
+#### Yol 2 (P2 — Yapısal) — Prompt sıralaması ve uyarı
+- `scenarioSection`'ı 7. sıradan **2. sıraya** taşı (persona prompt'undan hemen sonra) → senaryo ağırlığı artar
+- Persona prompt'unun başına runtime'da bir uyarı enjekte et: "Senaryo bağlamı seni yönlendirir. Persona'nın kalıcı backstory'sinde başka konular varsa, BU SEANS'da o konuları AÇMA — sadece senaryoda belirtilen duruma odaklan."
+- Test: Tüm mevcut 5 persona × 3 senaryo kombinasyonunda davranış kontrolü
+- **Risk:** Tüm seansları etkiler — agresif prompt ordering değişikliği. A/B test düşünülebilir.
+- **Süre:** ~1-2 gün (kod + kapsamlı manuel test)
+
+#### Yol 3 (Phase 2 mimarisi) — Persona/Scenario sorumluluk ayrımı
+- Persona system_prompt = SADECE karakter (kişilik, korkular, iletişim tarzı, tetikleyiciler) — senaryo-agnostic
+- Senaryo role_context = ŞU ANKİ durum (yarın sunum var, dün şikayet aldı, 3 ay kontrat süresi var, vb.)
+- Mevcut 5 persona'nın system_prompt'unu revize et: senaryo-spesifik dertleri sil, sadece karakter bırak
+- 3 senaryo seed'inde role_context zaten doğru şekilde yazılmış — bunlar referans
+- **Risk:** Yüksek — mevcut tüm persona seed'leri revize gerek; LLM davranışı tamamen yeniden test edilmeli
+- **Süre:** 1-2 gün
+- **Önkoşul:** P2-Roleplay-002 (Phase 2) kapsamına alınabilir
+
+**Acceptance:**
+- Kullanıcı senaryo seçtiğinde persona O senaryoya özgü durumu konuşur, kalıcı backstory'sine kaymaz
+- "İlk Sunum Heyecanı" senaryosunda persona sunum heyecanı konusunu açar, A sınıfı doktor randevu konusunu KESINLIKLE açmaz
+- Mevcut 5 persona × N senaryo kombinasyonu manuel test edilir, regression yok
+
+**Önerilen başlangıç:** **Yol 1 (data hygiene + form UX)** — sıfır risk, hızlı kazanç. Yetmezse Yol 2'ye geç. Yol 3 Phase 2 ile birlikte.
+
+**İlişkili:** [P1-Roleplay-001](#) (tamamlandı) — bu fix Phase 1'in temelini açtı; Yol 3 Phase 2 ile entegre olur.
 
 ---
 
@@ -216,93 +285,6 @@ Yamalar hafif kalsa da hata yüzeyi büyüyor. Modern alternatifler:
 
 ---
 
-### P2-UX-001 — Senaryo Seçim Sayfası Sidebar Boşluğu Kaldır
-
-**Bağlam:** Persona seçildikten sonra senaryo seçim sayfasına geçiliyor. Bu sayfada **sol nav bar ile ekran gövdesi arasında dikey boşluk** kalıyor (cinematic persona stage container'ının padding/margin'ı veya layout gridinin gap'i). Visual disconnection — sidebar bağımsız gibi duruyor.
-
-**Aksiyon:**
-- `(dashboard)/dashboard/sessions/new/page.tsx` veya scenario selection step component'inin ana container'ını incele
-- Sol nav bar'ın gövdeye kadar uzanması için layout grid / flex gap'ini kapat
-- Persona panel ve scenario panel'inin sidebar ile birleşik görünmesini sağla (background extend edilebilir veya container `pl-0`)
-- Mobile responsive davranışını koru (sidebar drawer'a girince layout bozulmasın)
-
-**Acceptance:**
-- Sidebar artık sayfa kenarına kadar bağlı görünüyor
-- Persona stage hâlâ centered ve okunaklı
-- Mobile'da sidebar drawer açıldığında çakışma yok
-
-**Tahmini süre:** 1-2 saat (CSS tweak)
-
----
-
-### P2-UX-002 — Voice Session Screen Redesign (Persona Kart + Transkript)
-
-**Bağlam:** Şu an sesli seans ekranı çok minimal — ortada büyük mikrofon butonu, üstte phase indicator, başka hiçbir şey yok. Kullanıcı persona'yı görmüyor, hangi senaryoda olduğunu hatırlamıyor, koçluk ipuçlarını yeniden okuyamıyor, AI ile konuştuğunu yazılı olarak takip edemiyor.
-
-**Hedef:** Senaryo seçim ekranının analoğu bir layout — sol kolon persona bilgileri, sağ kolon transkript akışı.
-
-#### Önerilen Layout
-
-```
-┌─ Header ─────────────────────────────────────────┐
-│ Persona Avatar+Name | Phase Indicator | Yarıda Kes / Bitir
-├──────────────────┬───────────────────────────────┤
-│                  │                               │
-│  PERSONA KART    │  TRANSKRİPT (kaydırılabilir)  │
-│  ─────────────   │  ──────────────────────────   │
-│  [foto - büyük]  │  Sen: ...                     │
-│  Selin Çelik     │  Persona: ...                 │
-│  İlaç Satış M.   │  Sen: ...                     │
-│  • Nötr          │  Persona: ...                 │
-│                  │  ...                          │
-│  Senaryo:        │                               │
-│  İlk Sunum       │  [auto-scroll bottom]         │
-│  Stresi          │                               │
-│                  │                               │
-│  Koçluk İpucu:   │                               │
-│  "Çok erken      │                               │
-│  çözüme..."      │                               │
-│                  │                               │
-│  ─────────────   │                               │
-│  [🎤 mic]        │                               │
-│  "Konuşun" /     │                               │
-│  "Dinliyorum"    │                               │
-└──────────────────┴───────────────────────────────┘
-```
-
-#### Aksiyon
-
-1. `VoiceSessionClient.tsx` layout overhaul — yeni 2-column grid
-2. **Sol kolon (persona kart):** Avatar (büyük), name, title, emotional baseline badge, scenario title, **coaching_tips** (bölüm başlık altında), mikrofon butonu altta
-3. **Sağ kolon (transkript):**
-   - Mevcut `messages` array'ini kronolojik render et
-   - Sen/Persona renk farkı (sen koyu, persona açık veya tersi)
-   - Auto-scroll: yeni mesaj geldiğinde altta sabit kal
-   - Streaming asistan mesajı için typing indicator
-   - Phantom/placeholder mesajları (boş content) gizle
-4. Mobile responsive: < md breakpoint'te transkript collapsible (bottom drawer) veya fullscreen toggle
-5. Mevcut waveform/animation effect'leri persona kartının altında küçük gösterge olarak kalabilir
-
-#### Acceptance
-
-- Kullanıcı persona'yı her an görebiliyor (avatar + ad + title)
-- Senaryo başlığı + koçluk ipucu sürekli görünür (scroll'a kaymaz)
-- Tüm transkript okunabilir, yeni mesaj geldiğinde altta sabitlenir
-- Streaming asistan yanıtı real-time akıyor (chunk-by-chunk render)
-- Mobile'da kullanıcı transkripti açıp kapatabiliyor
-
-#### Tradeoff
-
-- **+** Çok daha bilgilendirici UX — kullanıcı bağlamı kaybetmiyor
-- **+** Koçluk ipuçları sürekli erişilebilir → kullanıcı pratik sırasında hatırlatma alıyor
-- **+** Yazılı transkript yardımıyla kullanıcı sesli iletişimi yedekleyebiliyor (gürültülü ortam, işitme zorluğu)
-- **−** UI yoğunluk artar, dikkat dağıtıcı olabilir — minimalizm kaybolur
-- **−** Mobile layout daha karmaşık (testing ihtiyacı artar)
-
-**Tahmini süre:** 2-3 gün (layout + responsive + transkript scroll davranışı + animasyonlar)
-
----
-
 ### P2-Prompt-001 — AI Yanıt Tekrarını Azaltma (Paraphrase Diversity)
 
 **Bağlam:** Test seansında (Neslihan Bozkurt / Tükenmişlik İtirafı, 20 mesaj) AI'ın art arda iki yanıtında aynı kalıbı kullandığı tespit edildi:
@@ -349,19 +331,38 @@ Kullanıcı #13'te bunu yakaladı: *"Sohbetimiz içerisinde birkaç defa aynı c
 
 #### Hedeflenen Görünümler
 
-1. **Super Admin Cost Dashboard (`/admin/costs`):**
-   - Tarih aralığı filtresi (bugün / son 7 gün / son 30 gün / custom range)
-   - Servis filtresi (Tüm / OpenAI / ElevenLabs)
-   - Tenant kırılımı: her tenant için toplam maliyet (USD/EUR/TRY), seans sayısı, kullanıcı sayısı, ortalama seans maliyeti
-   - Servis kırılımı: OpenAI vs ElevenLabs ayrı sütunlar — hangi servisin maliyeti tenant'ta daha yüksek
-   - Trend grafiği (zaman içinde maliyet eğrisi)
-   - Top 10 maliyetli kullanıcı (cross-tenant, abuse tespiti)
+> **UI Spesifikasyonu (2026-05-01 ek netleştirme):** Super admin dashboard'da temel görünüm bir **tenant tablosu** olacak. Her satır tıklanabilir/expandable — açıldığında o kuruma ait kullanıcıların aynı sütun yapısıyla listelendiği sub-table iner.
 
-2. **Tenant Detail (`/admin/costs/[tenantId]`):**
-   - Bu tenant'ın seçilen aralıktaki tüm seansları
-   - Her seansın OpenAI + ElevenLabs maliyeti ayrı
-   - Kullanıcı bazlı toplam (kim ne kadar)
+**Servis kırılımı sütunları (her iki tabloda da):**
+| Sütun | Kapsam |
+|---|---|
+| LLM Harcama | gpt-4o chat + summarize + evaluation + debrief chat (OpenAI) |
+| STT Harcama | Whisper-1 (veya gpt-4o-mini-transcribe) — sesli seans + debrief input (OpenAI) |
+| TTS Harcama | ElevenLabs — persona sesi + debrief koçu + sesli rapor |
+| Toplam | Üç kalemin toplamı |
+| Seans Sayısı | Aralıktaki tamamlanan seans (context için) |
+| Ort. Seans Maliyeti | Toplam / Seans Sayısı (anomali tespiti) |
+
+> **Not:** Embedding/moderation gibi başka kalemler eklenirse ayrı sütun olarak gösterilir; şimdilik LLM/STT/TTS yeterli.
+
+1. **Super Admin Cost Dashboard (`/admin/costs`) — Tenant tablosu:**
+   - Tarih aralığı filtresi (bugün / son 7 gün / son 30 gün / custom range)
+   - Para birimi: USD varsayılan; opsiyonel TRY/EUR toggle (FX rate snapshot ile)
+   - **Tablo sütunları:** Kurum Adı | LLM | STT | TTS | Toplam | Seans Sayısı | Kullanıcı Sayısı | Ort. Seans Maliyeti
+   - Sıralanabilir (varsayılan: Toplam DESC)
+   - **Satır expand:** kurum adına tıklandığında **inline sub-table** açılır — o kurumun kullanıcılarını aynı sütunlarla gösterir (Kullanıcı Adı | LLM | STT | TTS | Toplam | Seans Sayısı | Ort. Seans Maliyeti)
+   - Sub-table de sıralanabilir; varsayılan Toplam DESC (en pahalı kullanıcı en üstte)
+   - Footer: tüm tenant'ların grand total'ı + servis bazlı dağılım pasta grafik
+   - Trend grafiği (zaman içinde toplam maliyet eğrisi, üstte ayrı kart)
+   - Top 10 maliyetli kullanıcı global widget (cross-tenant, abuse tespiti) — kurumdan bağımsız global liste, ayrı kart
+
+2. **Tenant Detail (`/admin/costs/[tenantId]`) — Drill-down:**
+   - Tenant tablosundan satır click → tam sayfa detay (sub-table'a alternatif derin görünüm)
+   - Bu tenant'ın seçilen aralıktaki tüm seansları (tablo)
+   - Her seansın LLM + STT + TTS kırılımı + toplam
+   - Kullanıcı bazlı toplam (sub-table'daki veriyle aynı, bu sayfada genişletilmiş)
    - Persona/scenario bazlı agregasyon (hangi persona daha pahalı — uzun yanıt üretiyor olabilir)
+   - CSV export butonu (bu tenant için)
 
 3. **Operational Alarmlar:**
    - Tenant aylık maliyeti X eşiğini geçerse super admin'e email

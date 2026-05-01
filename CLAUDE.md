@@ -4,9 +4,82 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
+## Hata Kaydı — 2026-05-01 ek (P1-Roleplay-001 + Landing CSS leak)
+
+### P1-ROLEPLAY-001 — Persona Roleplay Sözleşmesi Parametrikleştirildi (UYGULANDI ✅)
+
+**Bağlam:** AI'ın rol kontratı (`roleReminder`) ve seans açılış direktifi `system-prompt.builder.ts` ve `VoiceSessionClient.tsx` içinde hard-coded'du. Yeni roleplay türleri (mentee koçluk alıyor, mülakat pratiği, satış pitch) eklemek için her seferinde kod değişikliği gerekirdi.
+
+**Uygulanan fix (Phase 1, plan: `Pre_Launch_Phase_1.md`):**
+
+1. **Migration 052** (`20260501_052_persona_roleplay_contract.sql`):
+   - `personas.roleplay_contract TEXT` (rol sözleşmesi)
+   - `personas.opening_directive TEXT` ({USER_NAME} placeholder destekli)
+   - Mevcut 5 persona için seed UPDATE — DEFAULT_ROLE_CONTRACT ile birebir aynı metin (zero-regression)
+
+2. **`system-prompt.builder.ts`:**
+   - `DEFAULT_ROLE_CONTRACT` constant + `resolveRoleplayContract()` pure helper (export edildi, test edilebilir)
+   - Persona SELECT'e `roleplay_contract` eklendi
+   - Hard-coded `roleReminder` literal'i → DB'den okuma + DEFAULT fallback
+   - 6 unit test (`system-prompt.builder.test.ts`): NULL/undefined/empty/whitespace/custom/content-check
+
+3. **`persona.actions.ts`:** Zod schema + parseRaw + insert + update'e iki alan (`roleplay_contract` 8000 char, `opening_directive` 2000 char). Boş submit → DB'de NULL.
+
+4. **`PersonaForm.tsx`:** "Ses Ayarı"ndan sonra "Roleplay Sözleşmesi" kartı (Theater icon, mor renkli, 2 textarea + helper text). Super_admin only (mevcut yetki kontrolü korunuyor).
+
+5. **`VoiceSessionClient.tsx`:** `openingDirective` prop + `DEFAULT_OPENING_DIRECTIVE` constant + `{USER_NAME}` runtime interpolation. `userName` boşsa parantezli kısım temizlenir, doğal okunur.
+
+6. **`session.queries.ts` + `sessions/[id]/page.tsx`:** `getActiveSessionData` SELECT'ine `opening_directive`, `commonProps`'a `openingDirective` eklendi.
+
+**Deploy sırası kritik:** Migration 052 ÖNCE staging DB SQL Editor'da çalıştırılmalı. Aksi halde PostgREST 42703 (column not found) hatası → seans başlatılamaz, dashboard query'leri kırılır.
+
+**Mimari kazanım:** Aynı kod tabanı üzerinde **kod değişikliği olmadan** yeni roleplay türleri (mentee koçluk alıyor, mülakat pratiği, satış pitch, zor müşteri yönetimi vb.) süper admin tarafından persona kaydı düzenleyerek eklenebilir. Phase 2 mode preset sistemi bu temelin üstüne kurulacak.
+
+**İlgili dosyalar:** `supabase/migrations/20260501_052_*.sql`, `src/lib/session/system-prompt.builder.ts`, `src/lib/session/system-prompt.builder.test.ts`, `src/lib/actions/persona.actions.ts`, `src/components/admin/PersonaForm.tsx`, `src/components/sessions/VoiceSessionClient.tsx`, `src/lib/queries/session.queries.ts`, `src/app/(dashboard)/dashboard/sessions/[id]/page.tsx`
+
+---
+
+### LANDING-CSS-LEAK-001 — Header FOUC Kök Neden: Global `nav` Selector Leak (ÇÖZÜLDÜ ✅)
+
+**Bağlam:** Dashboard ekranında header üst kısmında dark band + ortada nav linklerinin yokluğu görüntüsü. İlk teşhis "Tailwind FOUC" olarak konuldu ve `fouc-md-flex` defansif CSS class'ı eklendi (yararlı oldu, bırakıldı). Ama gerçek problem farklıydı.
+
+**Asıl kök neden:** `src/app/(marketing)/landing.css`'in 75. satırında **GLOBAL element selector** olarak yazılmıştı:
+
+```css
+nav { position: fixed; top: 0; left: 0; right: 0; background: rgba(15, 14, 34, 0.72); ... }
+```
+
+Marketing layout (`(marketing)/layout.tsx`) bunu import edince Next.js CSS bundle'ında kalıyor; landing → dashboard navigasyonunda tarayıcı cache'inde aktif kalıp **AppHeader içindeki `<nav>`'a** uygulanıyordu. Sonuç: orta nav `position: fixed` ile tüm header genişliğine yayılıp dark band oluşturuyordu.
+
+**DevTools teşhisi:** Computed styles panelinde `nav { background: #0f0e22b8; backdrop-filter: blur(24px); padding: 1.5rem 0; }` — `0gv0fljk_k61an.css:1` kaynağından geldiği görüldü (landing.css bundle).
+
+**Uygulanan fix:** `landing.css`'teki global element selector'ları `.landing-root` wrapper class'ıyla scope'landı:
+- `nav { ... }` → `.landing-root nav { ... }` (ASIL FIX)
+- `html { scroll-behavior: smooth }` → `.landing-root` içine taşındı
+- `footer, .site-footer { ... }` → `.landing-root footer, .landing-root .site-footer` (defansif)
+
+`(marketing)/layout.tsx` zaten `<div className="landing-root">{children}</div>` ile sarmalıyor — landing page davranışı birebir aynı, başka rotalara leak duruyor.
+
+**Bonus defansif katman:** `src/app/layout.tsx`'in `<head>`'ine **kritik inline CSS** eklendi:
+```html
+<style>
+  .fouc-md-flex { display: none; }
+  @media (min-width: 768px) { .fouc-md-flex { display: flex; } }
+  .fouc-md-hidden { display: revert; }
+  @media (min-width: 768px) { .fouc-md-hidden { display: none !important; } }
+</style>
+```
+AppHeader'daki iki `hidden md:flex` elementine (`Merkez/Gelişim/Kütüphane` orta nav + kullanıcı adı bloku) bu class'lar eklendi. Tailwind CSS yüklenmeden önce de doğru responsive davranış garanti edilir. Ana fix yeterli olsa da, future global CSS leak'lerine karşı second line of defense.
+
+**Mimari öğreni:** CSS Modules veya scoped CSS kullanmadan element selector (`nav`, `footer`, `header`, vb.) yazmak Next.js'in cross-route CSS bundling davranışıyla birleşince leak yaratır. Yeni global CSS dosyalarında yalnızca **class selector'ları** (`.landing-nav`, `.landing-footer`) kullanılmalı veya bir wrapper ile scope'lanmalı.
+
+**İlgili dosyalar:** `src/app/(marketing)/landing.css`, `src/app/layout.tsx`, `src/components/layout/app-header.tsx`
+
+---
+
 ## Hata Kaydı — 2026-05-01 (PR #1 Test Geri Bildirimi Düzeltmeleri)
 
-> **Bekleyen iş:** F4 (Dashboard + Gelişimim birleştirme) post-launch'a aktarıldı; **font tutarsızlığı kritik nokta** olarak işaretlendi (Dashboard fontu standart). F2 (sesli rapor + transkript), F3 (AI insights), B1 (header FOUC derinlemesine fix) post-launch listede.
+> **Bekleyen iş:** F4 (Dashboard + Gelişimim birleştirme) post-launch'a aktarıldı; **font tutarsızlığı kritik nokta** olarak işaretlendi (Dashboard fontu standart). F2 (sesli rapor + transkript), F3 (AI insights), B1 (header FOUC derinlemesine fix) post-launch listede. **B1 ÇÖZÜLDÜ (LANDING-CSS-LEAK-001 — landing.css global nav selector scope'landı).**
 
 ### DASHBOARD-EVAL-JOIN-001 — Nested evaluations join'i RLS'de null dönüyordu (ÇÖZÜLDÜ ✅)
 

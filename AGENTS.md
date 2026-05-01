@@ -45,6 +45,8 @@ When continuing work on this project:
 - **Phase 2 decisions are finalized** (2026-04-24 spec session with user): voice-only (ADR-011), debrief (ADR-012), rubric-aware summarization (ADR-013), per-persona voice ID (ADR-014), development plan aggregation (ADR-015). Don't treat these as open questions.
 - **Confirmed product decisions** are documented in `CLAUDE.md` under "Confirmed Product Decisions" and "Phase 2 Product Decisions" — respect them.
 - **Active work queue:** P3-001..P3-004 + P3-006 + P3-007 tamamlandı. Kalan: P3-005 (opsiyonel klasör rename). Phase 3 esasen tamamlandı.
+- **P1-Roleplay-001 (2026-05-01) UYGULANDI ✅:** Persona roleplay sözleşmesi parametrikleştirildi. `personas.roleplay_contract` ve `personas.opening_directive` kolonları (migration 052) + `DEFAULT_ROLE_CONTRACT` fallback + PersonaForm "Roleplay Sözleşmesi" kartı. Mevcut davranış birebir korundu (zero-regression). Detay: `CLAUDE.md` → "Hata Kaydı — 2026-05-01 ek". **Migration 052 staging DB'de çalıştırılmadıkça kod kırılır** (PostgREST 42703).
+- **B1 (Header FOUC) ÇÖZÜLDÜ ✅ (2026-05-01):** Asıl kök neden `landing.css`'teki global `nav { ... }` element selector'ının dashboard sayfalarına leak etmesiydi. Fix: `.landing-root nav { ... }` ile scope'landı. Bonus: `app/layout.tsx` `<head>`'inde kritik inline CSS (`.fouc-md-flex`) defansif katman olarak korundu. Detay: `CLAUDE.md` → "LANDING-CSS-LEAK-001". **Mimari öğreni:** Global CSS dosyalarında element selector yazmamak; class selector kullanmak veya wrapper ile scope'lamak.
 
 ## Sesli Seans Katmanı — Bilinen Hatalar ve Çözümler (2026-04-26 ✅ TÜMÜ ÇÖZÜLDÜ)
 

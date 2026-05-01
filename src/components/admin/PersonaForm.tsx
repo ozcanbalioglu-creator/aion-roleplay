@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { toast } from 'sonner'
-import { Plus, Trash2, X, User, Brain, BarChart2, Settings, Volume2 } from 'lucide-react'
+import { Plus, Trash2, X, User, Brain, BarChart2, Settings, Volume2, Theater } from 'lucide-react'
 import { createPersonaAction, updatePersonaAction } from '@/lib/actions/persona.actions'
 import { cn } from '@/lib/utils'
 import { PersonaImageUpload } from './PersonaImageUpload'
@@ -388,6 +388,53 @@ export function PersonaForm({ initialData }: PersonaFormProps) {
                 />
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   ElevenLabs hesabınızdaki <span className="font-medium">Voice Library</span>&apos;den voice ID&apos;yi kopyalayın. Boş bırakılırsa <code className="text-[10px] bg-surface-container-high px-1 py-0.5 rounded">ELEVENLABS_DEFAULT_VOICE_ID</code> kullanılır. Cinsiyet/karakter persona ile uyumlu seçilmelidir.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card/60 backdrop-blur-xl border-border/40 shadow-2xl">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-500/10 rounded-lg">
+                  <Theater className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <CardTitle>Roleplay Sözleşmesi</CardTitle>
+                  <CardDescription>
+                    Persona&apos;nın rol-play içindeki sözleşmesi: kim hangi rolde, ne yapar, ne yapmaz.
+                    Boş bırakılırsa platform default sözleşmesi (kullanıcı koç, AI çalışan) kullanılır.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="roleplay_contract">Rol Sözleşmesi</Label>
+                <Textarea
+                  id="roleplay_contract"
+                  name="roleplay_contract"
+                  defaultValue={initialData?.roleplay_contract ?? ''}
+                  placeholder="Bu rol-play'de SEN çalışan/personelsin. Konuştuğun kişi senin yöneticindir/koçundur. Sen sorulara cevap verirsin, soru sormazsın..."
+                  className="min-h-[200px] font-mono text-xs bg-surface-container-low border-border/40"
+                />
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  AI&apos;ın hangi rolde olduğunu, ne yaptığını/yapmadığını açıkça belirtin.
+                  Hard-coded direktiflere değil, bu metne göre davranır. Boş bırakılırsa platform default kontratı kullanılır.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="opening_directive">Seans Açılış Direktifi</Label>
+                <Textarea
+                  id="opening_directive"
+                  name="opening_directive"
+                  defaultValue={initialData?.opening_directive ?? ''}
+                  placeholder="Kullanıcı yöneticin olarak seni çağırdı. Sadece kısa bir selam ver, sus. Konuşmayı kullanıcı başlatacak."
+                  className="min-h-[120px] font-mono text-xs bg-surface-container-low border-border/40"
+                />
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Seans başında persona&apos;nın ilk hareketi. <code className="text-[10px] bg-surface-container-high px-1 py-0.5 rounded">{`{USER_NAME}`}</code> placeholder&apos;ı runtime&apos;da kullanıcı adıyla değiştirilir.
                 </p>
               </div>
             </CardContent>

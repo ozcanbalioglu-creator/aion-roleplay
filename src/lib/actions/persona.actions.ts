@@ -33,6 +33,8 @@ const PersonaSchema = z.object({
   system_prompt: z.string().min(10, 'Sistem promptu en az 10 karakter olmalı'),
   avatar_image_url: z.string().url().optional().or(z.literal('')),
   voice_id: z.string().trim().max(100).optional().or(z.literal('')),
+  roleplay_contract: z.string().trim().max(8000).optional().or(z.literal('')),
+  opening_directive: z.string().trim().max(2000).optional().or(z.literal('')),
   trigger_behaviors: z.array(z.string()).default([]),
   kpis: z.array(z.object({
     code: z.string(),
@@ -61,6 +63,8 @@ function parseRaw(formData: FormData) {
     system_prompt: formData.get('system_prompt') as string,
     avatar_image_url: formData.get('avatar_image_url') as string,
     voice_id: (formData.get('voice_id') as string) || '',
+    roleplay_contract: (formData.get('roleplay_contract') as string) || '',
+    opening_directive: (formData.get('opening_directive') as string) || '',
     kpis: JSON.parse((formData.get('kpis') as string) || '[]'),
   }
 }
@@ -95,6 +99,8 @@ export async function createPersonaAction(formData: FormData) {
       cooperativeness: parsed.data.cooperativeness,
       avatar_image_url: parsed.data.avatar_image_url || null,
       voice_id: parsed.data.voice_id?.trim() || null,
+      roleplay_contract: parsed.data.roleplay_contract?.trim() || null,
+      opening_directive: parsed.data.opening_directive?.trim() || null,
       is_active: true,
       created_by: user.id,
       tenant_id: user.role === 'super_admin' ? null : user.tenant_id,
@@ -166,6 +172,8 @@ export async function updatePersonaAction(personaId: string, formData: FormData)
       cooperativeness: parsed.data.cooperativeness,
       avatar_image_url: parsed.data.avatar_image_url || null,
       voice_id: parsed.data.voice_id?.trim() || null,
+      roleplay_contract: parsed.data.roleplay_contract?.trim() || null,
+      opening_directive: parsed.data.opening_directive?.trim() || null,
     })
     .eq('id', personaId)
 

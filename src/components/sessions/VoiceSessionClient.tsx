@@ -25,6 +25,16 @@ import { cn } from '@/lib/utils'
 // Selamlama tetikleyici — kullanıcı mesajı olarak gösterilmez ama LLM'e gönderilir
 const GREETING_TRIGGER_PREFIX = '__GREET__:'
 
+/**
+ * Default açılış direktifi — persona.opening_directive NULL ise kullanılır.
+ * Phase 1 (P1-Roleplay-001) parametrikleştirme: persona DB'sindeki direktif öncelikli;
+ * yoksa bu metin fallback olarak devreye girer (zero-regression).
+ *
+ * UYARI: Migration 052 seed metnini de senkron tut — yoksa fallback ile DB davranışı ayrışır.
+ */
+const DEFAULT_OPENING_DIRECTIVE =
+  'Kullanıcı ({USER_NAME}) yöneticin/koçun olarak seni odasına çağırdı. Karakterine uygun, kısa bir selam ver (örn. "Merhaba {USER_NAME} Bey, çağırdığınızı duydum, geldim."). Hiçbir koç sorusu sorma, hiçbir bağlam kurma, hiçbir özet yapma — sadece selamla ve sus. Konuşmayı yönetici/koç başlatacak.'
+
 interface VoiceSessionClientProps {
   sessionId: string
   personaName: string
@@ -45,6 +55,7 @@ interface VoiceSessionClientProps {
   estimatedDuration: number
   initialPhase: SessionPhase
   userName?: string
+  openingDirective?: string | null
 }
 
 const TURN_LABELS: Record<string, string> = {
@@ -75,6 +86,7 @@ export function VoiceSessionClient({
   scenarioContext = null,
   initialPhase,
   userName = '',
+  openingDirective = null,
 }: VoiceSessionClientProps) {
   const router = useRouter()
   const abortRef = useRef<AbortController | null>(null)
@@ -359,11 +371,14 @@ export function VoiceSessionClient({
       if (messages.length === 0 && !greetingStartedRef.current) {
         greetingStartedRef.current = true
         setTurn('processing')
-        // ÖNEMLİ: Kullanıcı yöneticidir/koçtur. Sen (AI) çalışan/personelsin.
-        // Kullanıcı seni odasına çağırdı. Sen sadece selamla — KOÇ GİBİ AÇILIŞ YAPMA.
+        // Phase 1 parametrikleştirme (P1-Roleplay-001): persona.opening_directive
+        // dolu ise o metin kullanılır; NULL ise DEFAULT_OPENING_DIRECTIVE fallback'i
+        // devreye girer. {USER_NAME} placeholder'ı runtime'da kullanıcı adıyla
+        // değiştirilir (ad yoksa parantezli kısım boş kalır, doğal okunur).
+        const directive = openingDirective?.trim() || DEFAULT_OPENING_DIRECTIVE
         const greetBody = userName
-          ? `Kullanıcı (${userName}) yöneticin/koçun olarak seni odasına çağırdı. Karakterine uygun, kısa bir selam ver (örn. "Merhaba ${userName} Bey, çağırdığınızı duydum, geldim."). Hiçbir koç sorusu sorma, hiçbir bağlam kurma, hiçbir özet yapma — sadece selamla ve sus. Konuşmayı yönetici/koç başlatacak.`
-          : `Kullanıcı yöneticin/koçun olarak seni odasına çağırdı. Karakterine uygun, kısa bir selam ver. Hiçbir koç sorusu sorma — sadece selamla ve sus. Konuşmayı yönetici başlatacak.`
+          ? directive.replace(/\{USER_NAME\}/g, userName)
+          : directive.replace(/\s*\(\{USER_NAME\}\)\s*/g, ' ').replace(/\{USER_NAME\}\s*Bey/g, 'efendim').replace(/\{USER_NAME\}/g, '')
         const text = await sendTextToChat(`${GREETING_TRIGGER_PREFIX}${greetBody}`)
         if (text) {
           await speakText(text)
