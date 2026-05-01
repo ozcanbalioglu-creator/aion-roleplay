@@ -67,13 +67,10 @@ export function DimensionRadarChart({ data }: DimensionRadarChartProps) {
     )
   }
 
-  // İki katmanlı radar: arka planda "max=5" silik halkası (potansiyel),
-  // önde gerçek skorlar (kazanılan). Bu ikinin kontrastı kullanıcının
-  // "ne kadar yolu kaldığını" görsel olarak hızlıca anlamasını sağlar.
+  // Rapor stiline uyumlu: tek renk mor + grid halkalar (PolarRadiusAxis 0-5)
   const chartData = data.map((d) => ({
     ...d,
     subject: abbreviate(d.dimension),
-    max: 5, // referans halkası
   }))
 
   return (
@@ -87,37 +84,29 @@ export function DimensionRadarChart({ data }: DimensionRadarChartProps) {
       <CardContent className="pt-2">
         <ResponsiveContainer width="100%" height={260}>
           <RadarChart data={chartData} margin={{ top: 20, right: 40, left: 40, bottom: 20 }}>
-            <PolarGrid stroke="hsl(var(--border))" opacity={0.6} />
+            {/* Rapor sayfasındaki ReportRadar ile uyumlu: mor tek renk, minimal grid */}
+            <PolarGrid stroke="rgba(157, 107, 223, 0.15)" />
             <PolarAngleAxis
               dataKey="subject"
-              tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))', fontWeight: 700, letterSpacing: '0.05em' }}
+              tick={{ fontSize: 10, fill: 'rgba(26,26,46,0.6)', fontWeight: 500 }}
             />
-            {/* Sabit eksen: 0-5, hem mavi hem amber ölçek üzerinde aynı domain */}
-            <PolarRadiusAxis domain={[0, 5]} tick={false} axisLine={false} />
+            <PolarRadiusAxis
+              domain={[0, 5]}
+              tickCount={6}
+              tick={{ fontSize: 9, fill: 'rgba(26,26,46,0.3)' }}
+              axisLine={false}
+            />
             <Tooltip content={<CustomTooltip />} />
 
-            {/* 1. Arka plan: max=5 silik mor halkası (potansiyel/hedef) */}
-            <Radar
-              name="Hedef"
-              dataKey="max"
-              stroke="#9d6bdf"
-              fill="#9d6bdf"
-              fillOpacity={0.08}
-              strokeOpacity={0.3}
-              strokeWidth={1}
-              dot={false}
-              isAnimationActive={false}
-            />
-
-            {/* 2. Önde: gerçek skor amber poligonu */}
+            {/* Tek renk mor poligon — rapor radar stili */}
             <Radar
               name="Ortalama"
               dataKey="avg"
-              stroke="#f59e0b"
-              fill="#f59e0b"
-              fillOpacity={0.35}
-              strokeWidth={3}
-              dot={{ fill: '#f59e0b', stroke: 'hsl(var(--background))', strokeWidth: 1, r: 3 }}
+              stroke="#9D6BDF"
+              fill="#9D6BDF"
+              fillOpacity={0.18}
+              strokeWidth={1.5}
+              dot={{ fill: '#9D6BDF', stroke: 'transparent', r: 4, fillOpacity: 0.85 }}
               animationDuration={1500}
             />
           </RadarChart>
