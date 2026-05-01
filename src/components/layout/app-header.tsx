@@ -64,9 +64,11 @@ export function AppHeader({ user, tenant, unreadCount = 0, onSignOut }: AppHeade
         )}
       </div>
 
-      {/* Merkez/Gelişim/Kütüphane nav — sadece user/manager için */}
+      {/* Merkez/Gelişim/Kütüphane nav — sadece user/manager için.
+          fouc-md-flex: Tailwind yüklenmeden önce kritik inline CSS bu class'ı görüp
+          elementi gizli tutar (FOUC defense, app/layout.tsx'teki <style> bloğuna bak). */}
       {(user.role === 'user' || user.role === 'manager') && (
-        <nav className="hidden md:flex space-x-6 absolute left-1/2 -translate-x-1/2">
+        <nav className="hidden md:flex fouc-md-flex space-x-6 absolute left-1/2 -translate-x-1/2">
           <Link href="/dashboard" className="text-on-primary-container border-b-2 border-on-primary-container pb-1 font-body font-medium text-sm transition-all duration-300">Merkez</Link>
           <Link href="/dashboard/progress" className="text-on-surface-variant hover:text-on-surface font-body font-medium text-sm transition-all duration-300">Gelişim</Link>
           <Link href="/dashboard/sessions" className="text-on-surface-variant hover:text-on-surface font-body font-medium text-sm transition-all duration-300">Kütüphane</Link>
@@ -91,7 +93,7 @@ export function AppHeader({ user, tenant, unreadCount = 0, onSignOut }: AppHeade
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <div className="flex items-center gap-3 cursor-pointer group">
-              <div className="hidden md:flex flex-col items-end">
+              <div className="hidden md:flex fouc-md-flex flex-col items-end">
                 <span className="text-sm font-semibold font-body text-on-background leading-tight group-hover:text-on-primary-container transition-colors">{user.full_name}</span>
                 <span className="text-xs font-label text-on-surface-variant uppercase tracking-widest mt-1">
                   {ROLE_LABELS[user.role] ?? user.role}

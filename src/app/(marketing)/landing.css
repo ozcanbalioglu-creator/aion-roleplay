@@ -34,16 +34,15 @@
       padding: 0;
     }
 
-    html {
-      scroll-behavior: smooth;
-    }
-
+    /* SCOPED: scroll-behavior landing'e özgü; global html'i etkilemesin
+       (dashboard scroll davranışı zararsızdı ama temizlik için scope'landı). */
     .landing-root {
       font-family: var(--font-sans);
       background: var(--surface);
       color: var(--on-surface);
       -webkit-font-smoothing: antialiased;
       overflow-x: hidden;
+      scroll-behavior: smooth;
     }
 
     /* ── UTILS ── */
@@ -72,7 +71,9 @@
     }
 
     /* ── NAV ── */
-    nav {
+    /* SCOPED: .landing-root nav (önceden global `nav` idi, dashboard AppHeader'daki
+       <nav>'a leak edip dark fixed band yaratıyordu — Header FOUC kök nedeni). */
+    .landing-root nav {
       position: fixed;
       top: 0;
       left: 0;
@@ -2027,8 +2028,10 @@
     }
 
     /* ── FOOTER ── */
-    footer,
-    .site-footer {
+    /* SCOPED: önceden global `footer, .site-footer` idi — dashboard'da kullanılan
+       <footer> elementlerine leak ediyordu. */
+    .landing-root footer,
+    .landing-root .site-footer {
       background: var(--bg-deeper);
       padding-top: 2.5rem;
       padding-bottom: 2.5rem;

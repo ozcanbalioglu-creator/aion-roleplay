@@ -36,6 +36,19 @@ export default function RootLayout({
   return (
     <html lang="tr" suppressHydrationWarning className="light">
       <head>
+        {/* FOUC defense — Tailwind CSS yüklenmeden önce responsive hide/show kuralları
+            uygulansın diye kritik inline CSS. AppHeader'daki orta nav ve kullanıcı adı
+            bloku (md+ breakpoint'te görünen) Tailwind gelmeden önce default `display: block`
+            ile bir an görünüyordu (kısmi header flash). Aşağıdaki kurallar Tailwind'den
+            ÖNCE devreye girip elementleri varsayılan olarak gizler; md+ breakpoint'te
+            flex'e çevirir. Tailwind yüklendiğinde aynı `hidden md:flex` zaten kuralı
+            koruyor — çakışma yok, geri sıçrama yok. */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          .fouc-md-flex { display: none; }
+          @media (min-width: 768px) { .fouc-md-flex { display: flex; } }
+          .fouc-md-hidden { display: revert; }
+          @media (min-width: 768px) { .fouc-md-hidden { display: none !important; } }
+        `}} />
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL,GRAD,opsz@200..700,0..1,-50..200,20..48&display=swap" rel="stylesheet" />
       </head>
       <body className={`${fontBody.variable} ${fontHeadline.variable} font-body antialiased`} suppressHydrationWarning>
