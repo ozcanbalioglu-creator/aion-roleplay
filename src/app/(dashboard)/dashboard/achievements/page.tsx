@@ -8,7 +8,6 @@ import {
   getCompletedChallenges,
 } from '@/lib/queries/gamification.queries'
 import { getLeaderboard } from '@/lib/queries/leaderboard.queries'
-import { LevelBar } from '@/components/ui/LevelBar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Zap, Trophy } from 'lucide-react'
 import { Leaderboard } from '@/components/dashboard/Leaderboard'
@@ -75,71 +74,100 @@ export default async function AchievementsPage() {
         </p>
       </div>
 
-      {/* ROW 1: Profile + KPI yatay (full width) */}
-      <Card className="bg-surface-container-low border-border/40 overflow-hidden shadow-sm">
-        <CardContent className="pt-8 pb-6">
-          <div className="flex flex-col md:flex-row items-center md:items-stretch gap-8">
-            {/* Sol: Avatar + isim */}
-            <div className="flex items-center gap-5 md:flex-shrink-0 md:pr-8 md:border-r md:border-border/30">
+      {/* ROW 1: Profile Hero — site renk paleti ile dark celebratory card.
+          Site renkleri: tertiary-container (#191936) + primary-container (#2A0056)
+          gradient + accent purple (#9D6BDF) glow + amber-500 gamification vurgusu. */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-gradient-to-br from-[#1a1a2e] via-[#1f1140] to-[#0f0e22] shadow-2xl">
+        {/* Dekoratif radial glow'lar */}
+        <div className="absolute -left-20 top-1/2 -translate-y-1/2 h-72 w-72 rounded-full bg-[#9D6BDF]/20 blur-3xl pointer-events-none" />
+        <div className="absolute -right-32 -bottom-20 h-80 w-80 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+
+        <div className="relative p-8 md:p-10">
+          <div className="flex flex-col lg:flex-row gap-8 lg:items-center">
+            {/* Sol: PROFİL ÖZETİ label + Avatar */}
+            <div className="flex flex-col items-center lg:items-start gap-4 lg:flex-shrink-0">
+              <span className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/50">
+                Profil Özeti
+              </span>
               <div className="relative">
-                <div className="absolute -inset-3 bg-amber-500/10 rounded-full blur-2xl animate-pulse" />
-                <div className="relative h-20 w-20 rounded-full bg-on-background/5 border border-amber-500/20 flex items-center justify-center text-4xl shadow-inner">
+                {/* Mor radial glow */}
+                <div className="absolute -inset-4 bg-[#9D6BDF]/30 rounded-full blur-2xl" />
+                {/* Avatar circle */}
+                <div className="relative h-24 w-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-5xl shadow-2xl backdrop-blur-sm">
                   {LEVEL_EMOJI[profile.level] ?? '🎖️'}
                 </div>
-                <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center text-white font-bold text-xs shadow-lg">
+                {/* Level badge */}
+                <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-amber-500 border-[3px] border-[#1a1a2e] flex items-center justify-center text-white font-black text-sm shadow-xl">
                   {profile.level}
                 </div>
               </div>
-              <div className="space-y-1 text-center md:text-left">
-                <h2 className="text-xl font-bold leading-tight">
+            </div>
+
+            {/* Orta: İsim + Subtitle + Progress bar */}
+            <div className="flex-1 min-w-0 space-y-5">
+              <div className="space-y-1 text-center lg:text-left">
+                <h2 className="text-3xl md:text-4xl font-headline italic text-white tracking-tight leading-tight">
                   {currentUser.full_name ?? currentUser.email}
                 </h2>
-                <p className="text-[10px] uppercase font-black tracking-widest text-amber-500">
+                <p className="text-base font-headline italic text-[#B990F0]">
                   {LEVEL_TITLE[profile.level] ?? 'Koç'}
                 </p>
               </div>
+
+              {/* Progress bar bölümü */}
+              <div className="space-y-2">
+                <div className="flex items-end justify-between gap-2 flex-wrap">
+                  <span className="text-[10px] uppercase tracking-[0.25em] font-black text-amber-400">
+                    {profile.level >= 5
+                      ? 'Seviye Tamamlandı'
+                      : `Seviye ${profile.level + 1} İçin`}
+                  </span>
+                  <span className="text-xs tabular-nums font-bold text-amber-400">
+                    {profile.xp_points.toLocaleString('tr-TR')} / {profile.nextLevelXP.toLocaleString('tr-TR')} Deneyim Puanı
+                  </span>
+                </div>
+                <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-[#9D6BDF] transition-all duration-500"
+                    style={{ width: `${profile.progressPercent}%` }}
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* Sağ: KPI metrikleri yataya yayılmış */}
-            <div className="flex-1 grid grid-cols-3 gap-4 md:gap-8">
-              <div className="flex flex-col items-center justify-center text-center">
-                <span className="text-3xl font-bold tabular-nums text-foreground leading-none">
+            {/* Sağ: 3 KPI mini-kartı */}
+            <div className="grid grid-cols-3 gap-3 lg:flex-shrink-0">
+              <div className="flex flex-col items-center justify-center px-5 py-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm min-w-[100px]">
+                <Zap className="h-4 w-4 text-amber-400 mb-2" />
+                <span className="text-2xl font-bold tabular-nums text-white leading-none">
                   {profile.xp_points.toLocaleString('tr-TR')}
                 </span>
-                <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mt-2">
+                <span className="text-[9px] uppercase tracking-widest text-white/50 font-bold mt-2 text-center">
                   Deneyim Puanı
                 </span>
               </div>
-              <div className="flex flex-col items-center justify-center text-center border-x border-border/30">
-                <span className="text-3xl font-bold tabular-nums text-foreground leading-none">
+              <div className="flex flex-col items-center justify-center px-5 py-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm min-w-[100px]">
+                <span className="text-base mb-1.5">🔥</span>
+                <span className="text-2xl font-bold tabular-nums text-white leading-none">
                   {profile.current_streak}
                 </span>
-                <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mt-2">
-                  Gün Seri
+                <span className="text-[9px] uppercase tracking-widest text-white/50 font-bold mt-2 text-center">
+                  Gün Serisi
                 </span>
               </div>
-              <div className="flex flex-col items-center justify-center text-center">
-                <span className="text-3xl font-bold tabular-nums text-foreground leading-none">
+              <div className="flex flex-col items-center justify-center px-5 py-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm min-w-[100px]">
+                <Trophy className="h-4 w-4 text-amber-400 mb-2" />
+                <span className="text-2xl font-bold tabular-nums text-white leading-none">
                   {userBadges.length}
                 </span>
-                <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mt-2">
+                <span className="text-[9px] uppercase tracking-widest text-white/50 font-bold mt-2 text-center">
                   Rozet
                 </span>
               </div>
             </div>
           </div>
-
-          {/* LevelBar — full width */}
-          <div className="mt-8">
-            <LevelBar
-              level={profile.level}
-              progressPercent={profile.progressPercent}
-              xpPoints={profile.xp_points}
-              nextLevelXP={profile.nextLevelXP}
-            />
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* ROW 2: Rozet | Görev (yan yana 2 kutu) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
