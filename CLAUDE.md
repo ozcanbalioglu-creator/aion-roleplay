@@ -4,6 +4,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
+## Hata Kaydı — 2026-05-01 ek2 (P1-UX-001 / F4)
+
+### P1-UX-001 — Dashboard + Gelişimim Sayfa Birleştirme (UYGULANDI ✅)
+
+**Bağlam:** Dashboard ve Gelişimim sayfaları %70 örtüşüyordu (Toplam DP, Tamamlanan Seans, Ort. Puan, Skor Trendi, Boyut Radar her ikisinde de). Kullanıcılar "veri için neresi?" cognitive yükü yaşıyordu. Ayrıca iki sayfa farklı font sistemleri kullanıyordu (Dashboard: `font-headline italic`, Progress: ad-hoc Card stilleri).
+
+**Uygulanan fix:**
+
+1. **`dashboard/progress/page.tsx`** — 185 satırlık içerik kaldırıldı; sadece `redirect('/dashboard')`. Eski bookmark'lar ve linkler kırılmaz.
+
+2. **`navigation.ts`** — `user` ve `manager` rollerinden "Gelişimim" sidebar item'ı kaldırıldı (2 yer).
+
+3. **`MobileNav.tsx`** — "Gelişim" item'ı çıkarıldı (5 ikon → 4 ikon: Ana Sayfa, Seanslar, Başarılar, Profil).
+
+4. **`AppHeader.tsx`** — Orta nav'daki "Merkez/**Gelişim**/Kütüphane" → "Merkez/Kütüphane" (user/manager rolleri için).
+
+5. **Dashboard `page.tsx`** — `CancellationStatsWidget` zaten Sol Sütun'un altında koşullu render ediliyor (`totalCancelled > 0`). Yorum satırı netleştirildi.
+
+**Font tutarsızlığı çözümü:** Progress sayfası tamamen kaldırıldığı için inline render'lardaki ad-hoc font kullanımları (4 manuel Card, son seanslar tablosu, dipnot) yok oldu. Dashboard zaten standart font sistemini kullanıyor (`font-headline italic` page title, `font-body uppercase tracking-[0.3em] font-black` stat label, `tabular-nums` veri/sayı). Tüm widget'lar (`DashboardStatCards`, `ScoreTrendChart`, `DimensionRadarChart`, `WeeklyChallengesWidget`, `DevelopmentPlanWidget`, `DimensionProgressCards`, `CancellationStatsWidget`, `RecentSessionsList`, `PersonaScoreChart`) ortak ve standart fontla render ediliyor.
+
+**Benzersiz Progress içeriğinin akıbeti:**
+- 20 satırlık tam seans tablosu → atlandı (kullanıcı zaten `/dashboard/sessions`'da tam tablo + filtreler bulabiliyor; çift tablo gereksiz)
+- 4 manuel stat Card → atıldı (Dashboard'da `DashboardStatCards` zaten aynı bilgileri zengin tasarımla gösteriyor)
+- "DP = Deneyim Puanı" dipnotu → atıldı (terminoloji onboarding'de + tooltip ile çözülecek)
+
+**Feature flag:** `features.progressPage` artık hiçbir kod yolundan tüketilmiyor. Tanım `src/lib/features.ts`'de duruyor (post-launch cleanup için).
+
+**İlgili dosyalar:** `src/app/(dashboard)/dashboard/progress/page.tsx`, `src/lib/navigation.ts`, `src/components/layout/mobile-nav.tsx`, `src/components/layout/app-header.tsx`, `src/app/(dashboard)/dashboard/page.tsx`
+
+---
+
 ## Hata Kaydı — 2026-05-01 ek (P1-Roleplay-001 + Landing CSS leak)
 
 ### P1-ROLEPLAY-001 — Persona Roleplay Sözleşmesi Parametrikleştirildi (UYGULANDI ✅)

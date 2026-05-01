@@ -64,13 +64,14 @@ export function AppHeader({ user, tenant, unreadCount = 0, onSignOut }: AppHeade
         )}
       </div>
 
-      {/* Merkez/Gelişim/Kütüphane nav — sadece user/manager için.
+      {/* Merkez/Kütüphane nav — sadece user/manager için.
+          P1-UX-001 / F4 (2026-05-01): "Gelişim" linki kaldırıldı; Dashboard
+          (/dashboard) tek kaynak. Eski /dashboard/progress → /dashboard redirect.
           fouc-md-flex: Tailwind yüklenmeden önce kritik inline CSS bu class'ı görüp
           elementi gizli tutar (FOUC defense, app/layout.tsx'teki <style> bloğuna bak). */}
       {(user.role === 'user' || user.role === 'manager') && (
         <nav className="hidden md:flex fouc-md-flex space-x-6 absolute left-1/2 -translate-x-1/2">
           <Link href="/dashboard" className="text-on-primary-container border-b-2 border-on-primary-container pb-1 font-body font-medium text-sm transition-all duration-300">Merkez</Link>
-          <Link href="/dashboard/progress" className="text-on-surface-variant hover:text-on-surface font-body font-medium text-sm transition-all duration-300">Gelişim</Link>
           <Link href="/dashboard/sessions" className="text-on-surface-variant hover:text-on-surface font-body font-medium text-sm transition-all duration-300">Kütüphane</Link>
         </nav>
       )}

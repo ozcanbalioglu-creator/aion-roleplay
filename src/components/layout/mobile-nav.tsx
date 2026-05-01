@@ -2,14 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, MessagesSquare, BarChart3, Trophy, UserCircle } from 'lucide-react'
+import { LayoutDashboard, MessagesSquare, Trophy, UserCircle } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useIsMobile } from '@/hooks/use-mobile'
 
+// P1-UX-001 / F4 (2026-05-01): "Gelişim" item'ı kaldırıldı — Dashboard tek
+// kaynak hâline geldi (eski /dashboard/progress → /dashboard redirect).
 const MOBILE_NAV_ITEMS = [
   { label: 'Ana Sayfa', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Seanslar', href: '/dashboard/sessions', icon: MessagesSquare },
-  { label: 'Gelişim', href: '/dashboard/progress', icon: BarChart3 },
   { label: 'Başarılar', href: '/dashboard/achievements', icon: Trophy },
   { label: 'Profil', href: '/dashboard/profile', icon: UserCircle },
 ]

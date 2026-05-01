@@ -14,6 +14,8 @@
 > **GÜNCELLEME 2026-05-01 (P2-Cost-001 UI netleştirme):** Super admin maliyet dashboard'unun temel görünümü tenant tablosu (Kurum Adı | LLM | STT | TTS | Toplam) + satır click ile expandable kullanıcı sub-table olarak spec edildi. Detay: `P2-Cost-001 → Hedeflenen Görünümler`.
 >
 > **GÜNCELLEME 2026-05-01 (P1-Roleplay-002 eklendi):** Test sırasında tespit edildi: senaryo bağlamı persona system_prompt'u tarafından eziliyor (Aylin Çelik + "İlk Sunum Heyecanı" → A sınıfı doktor konusu açıldı). Hard-code değil, prompt mimarisi sorunu. Üç çözüm yolu (data hygiene / structural / Phase 2 mimari ayrımı) listelendi.
+>
+> **GÜNCELLEME 2026-05-01 (P1-UX-001 / F4 tamamlandı):** Progress sayfası kaldırıldı (`redirect('/dashboard')`); navigation/mobile nav/AppHeader'dan "Gelişim/Gelişimim" referansları temizlendi. Font tutarsızlığı Progress'in inline render'larıyla birlikte yok oldu. Detay: `CLAUDE.md` "Hata Kaydı — 2026-05-01 ek2".
 
 **Hazırlık tarihi:** 2026-04-27
 **Bağlam:** 1 Mayıs 2026 launch sonrası dönem için biriktirilen iyileştirme önerileri.
@@ -35,7 +37,14 @@
 
 ## 🔴 P1 — İlk 2 Hafta İçinde
 
-### P1-UX-001 — Dashboard + Gelişimim Sayfa Birleştirme (F4)
+### ~~P1-UX-001 — Dashboard + Gelişimim Sayfa Birleştirme (F4)~~ ✅ TAMAMLANDI (2026-05-01)
+
+**Sonuç:** Progress sayfası kaldırıldı (`redirect('/dashboard')`); navigation/mobile nav/AppHeader'dan "Gelişim/Gelişimim" referansları temizlendi. Font tutarsızlığı, Progress'in inline render'ları yok olunca otomatik çözüldü — Dashboard zaten standart font sistemini kullanıyor. Detay: `CLAUDE.md` → "Hata Kaydı — 2026-05-01 ek2".
+
+<details>
+<summary>Orijinal madde detayı (referans için)</summary>
+
+#### Eski tanım — P1-UX-001 (F4)
 
 **Bağlam:** Dashboard ve Gelişimim sayfaları yaklaşık %70 örtüşüyor (Toplam DP, Tamamlanan Seans, Ort. Puan, Skor Trendi, Boyut Radar her iki sayfada da var). Kullanıcı için "veri için neresi?" cognitive yükü yaratıyor.
 
@@ -70,6 +79,8 @@ Acceptance: "Tüm widget'lar Dashboard font sistemi ile uyumlu görünüyor."
 **Önkoşul:** Lansman sonrası en az 1 hafta gerçek kullanım — kullanıcılar mevcut akışa alıştıktan sonra birleştirme yapılırsa "kayıp" hissini minimize eder.
 
 **Detaylı plan:** [`pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md`](pr1_sonrasi_tespit_edilen_iyilestirmeler_20260430.md) → F4
+
+</details>
 
 ---
 

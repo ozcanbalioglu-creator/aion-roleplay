@@ -40,7 +40,6 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
         { label: 'Seans Başlat', href: '/dashboard/sessions/new', icon: Mic, feature: 'voice' },
         { label: 'Seanslarım', href: '/dashboard/sessions', icon: MessagesSquare },
-        { label: 'Gelişimim', href: '/dashboard/progress', icon: BarChart3, feature: 'progressPage' },
         { label: 'Başarılarım', href: '/dashboard/achievements', icon: Trophy, feature: 'gamification' },
       ]
     },
@@ -59,7 +58,6 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
         { label: 'Seans Başlat', href: '/dashboard/sessions/new', icon: Mic, feature: 'voice' },
         { label: 'Seanslarım', href: '/dashboard/sessions', icon: MessagesSquare },
-        { label: 'Gelişimim', href: '/dashboard/progress', icon: BarChart3, feature: 'progressPage' },
         { label: 'Başarılarım', href: '/dashboard/achievements', icon: Trophy, feature: 'gamification' },
       ]
     },

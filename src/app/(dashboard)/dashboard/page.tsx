@@ -117,6 +117,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             </div>
             <PersonaScoreChart data={personaComparison} />
             <RecentSessionsList sessions={recentSessions} />
+            {/* CancellationStatsWidget — F4 (P1-UX-001): eskiden Gelişimim'deydi,
+                Dashboard'a taşındı. Widget kendi içinde `totalCancelled === 0` ise
+                null döner; wrapper'ın grid'de hayalet hücre bırakmaması için aynı
+                koşulu burada da kontrol ediyoruz. */}
             {cancelStats && cancelStats.totalCancelled > 0 && (
               <div className="col-span-1 md:col-span-2">
                 <CancellationStatsWidget stats={cancelStats} />
