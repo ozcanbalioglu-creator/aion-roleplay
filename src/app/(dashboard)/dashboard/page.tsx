@@ -123,11 +123,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               </div>
             )}
           </div>
-          
-          {/* Boyut İlerleme Kartları */}
-          {dimensionDelta.length > 0 && (
-            <DimensionProgressCards dimensions={dimensionDelta} />
-          )}
         </div>
 
         {/* Sağ Sütun: Hedefler ve Yetkinlikler */}
@@ -146,6 +141,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           </div>
         </div>
       </div>
+
+      {/* Boyut İlerleme Kartları (Aylık Kıyas) — TAM GENİŞLİK */}
+      {dimensionDelta.length > 0 && (
+        <DimensionProgressCards dimensions={dimensionDelta} />
+      )}
     </div>
   )
 }

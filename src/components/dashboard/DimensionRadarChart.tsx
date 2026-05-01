@@ -1,7 +1,7 @@
 'use client'
 
 import {
-  RadarChart, PolarGrid, PolarAngleAxis,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   Radar, ResponsiveContainer, Tooltip,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -67,7 +67,14 @@ export function DimensionRadarChart({ data }: DimensionRadarChartProps) {
     )
   }
 
-  const chartData = data.map((d) => ({ ...d, subject: abbreviate(d.dimension) }))
+  // İki katmanlı radar: arka planda "max=5" silik halkası (potansiyel),
+  // önde gerçek skorlar (kazanılan). Bu ikinin kontrastı kullanıcının
+  // "ne kadar yolu kaldığını" görsel olarak hızlıca anlamasını sağlar.
+  const chartData = data.map((d) => ({
+    ...d,
+    subject: abbreviate(d.dimension),
+    max: 5, // referans halkası
+  }))
 
   return (
     <Card className="bg-card/60 border-border overflow-hidden">
@@ -85,13 +92,30 @@ export function DimensionRadarChart({ data }: DimensionRadarChartProps) {
               dataKey="subject"
               tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))', fontWeight: 700, letterSpacing: '0.05em' }}
             />
+            {/* Sabit eksen: 0-5, hem mavi hem amber ölçek üzerinde aynı domain */}
+            <PolarRadiusAxis domain={[0, 5]} tick={false} axisLine={false} />
             <Tooltip content={<CustomTooltip />} />
+
+            {/* 1. Arka plan: max=5 silik mor halkası (potansiyel/hedef) */}
+            <Radar
+              name="Hedef"
+              dataKey="max"
+              stroke="#9d6bdf"
+              fill="#9d6bdf"
+              fillOpacity={0.08}
+              strokeOpacity={0.3}
+              strokeWidth={1}
+              dot={false}
+              isAnimationActive={false}
+            />
+
+            {/* 2. Önde: gerçek skor amber poligonu */}
             <Radar
               name="Ortalama"
               dataKey="avg"
               stroke="#f59e0b"
               fill="#f59e0b"
-              fillOpacity={0.2}
+              fillOpacity={0.35}
               strokeWidth={3}
               dot={{ fill: '#f59e0b', stroke: 'hsl(var(--background))', strokeWidth: 1, r: 3 }}
               animationDuration={1500}
