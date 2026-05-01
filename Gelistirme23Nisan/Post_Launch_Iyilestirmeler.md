@@ -16,6 +16,8 @@
 > **GÜNCELLEME 2026-05-01 (P1-Roleplay-002 eklendi):** Test sırasında tespit edildi: senaryo bağlamı persona system_prompt'u tarafından eziliyor (Aylin Çelik + "İlk Sunum Heyecanı" → A sınıfı doktor konusu açıldı). Hard-code değil, prompt mimarisi sorunu. Üç çözüm yolu (data hygiene / structural / Phase 2 mimari ayrımı) listelendi.
 >
 > **GÜNCELLEME 2026-05-01 (P1-UX-001 / F4 tamamlandı):** Progress sayfası kaldırıldı (`redirect('/dashboard')`); navigation/mobile nav/AppHeader'dan "Gelişim/Gelişimim" referansları temizlendi. Font tutarsızlığı Progress'in inline render'larıyla birlikte yok oldu. Detay: `CLAUDE.md` "Hata Kaydı — 2026-05-01 ek2".
+>
+> **GÜNCELLEME 2026-05-01 (P1-Voice-001 uygulandı, branch'te bekliyor):** STT modeli `whisper-1` → `gpt-4o-mini-transcribe` (OpenAI 2025). Adapter env-driven yapıldı (`OPENAI_STT_MODEL`); rollback `whisper-1` ile anlık. Branch: `claude/p1-voice-001-stt-upgrade` — Vercel preview deploy ile test sonrası main'e merge edilecek. Phantom regex listesi defansif katman olarak korundu.
 
 **Hazırlık tarihi:** 2026-04-27
 **Bağlam:** 1 Mayıs 2026 launch sonrası dönem için biriktirilen iyileştirme önerileri.
@@ -84,7 +86,14 @@ Acceptance: "Tüm widget'lar Dashboard font sistemi ile uyumlu görünüyor."
 
 ---
 
-### P1-Voice-001 — STT Servisi Upgrade Değerlendirmesi
+### ~~P1-Voice-001 — STT Servisi Upgrade Değerlendirmesi~~ ✅ UYGULANDI (2026-05-01)
+
+**Sonuç:** `src/adapters/stt/openai.adapter.ts` — `model: 'whisper-1'` hard-coded'du; env-driven yapıldı. Default `gpt-4o-mini-transcribe`. `OPENAI_STT_MODEL` env'i ile override edilebilir (rollback için `whisper-1` set edilir). Phantom regex listesi defansif katman olarak korundu. Branch: `claude/p1-voice-001-stt-upgrade` (Vercel preview ile test edilecek, sonra main'e merge).
+
+<details>
+<summary>Orijinal madde detayı (referans için)</summary>
+
+#### Eski tanım — P1-Voice-001
 
 **Bağlam:** OpenAI Whisper-1 modeli 2023 sürümü. Türkçe halüsinasyonları (YouTube altyazı kredilerinden öğrenilmiş) sürekli yama gerektiriyor:
 - Phantom regex listesi (10+ pattern)
@@ -108,6 +117,8 @@ Yamalar hafif kalsa da hata yüzeyi büyüyor. Modern alternatifler:
 **Acceptance:** STT-PHANTOM-001 tetiklenme oranı %90+ azalmalı; phantom regex listesi guardrail olarak korunur.
 
 **Tahmini süre:** 2-4 saat (gpt-4o-mini-transcribe), 1 gün (Deepgram)
+
+</details>
 
 ---
 

@@ -1130,7 +1130,7 @@ Key actions in `src/lib/actions/session.actions.ts`:
 `src/adapters/` provides swappable implementations for external AI services:
 
 - `llm/` — `ILLMAdapter` with `chat()` and `streamChat()`. Current impl: OpenAI (`OPENAI_API_KEY`, model from `OPENAI_LLM_MODEL`, defaults to `gpt-4o`).
-- `stt/` — Speech-to-text. Current impl: OpenAI Whisper.
+- `stt/` — Speech-to-text. Current impl: OpenAI (`OPENAI_API_KEY`, model from `OPENAI_STT_MODEL`, defaults to `gpt-4o-mini-transcribe`; rollback to `whisper-1` via env override).
 - `tts/` — Text-to-speech. Current impl: ElevenLabs (`ELEVENLABS_API_KEY`).
 
 ### Chat API & Streaming
@@ -1156,6 +1156,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 OPENAI_API_KEY
 OPENAI_LLM_MODEL          # defaults to gpt-4o
+OPENAI_STT_MODEL          # defaults to gpt-4o-mini-transcribe; whisper-1 ile rollback yapılabilir
 ELEVENLABS_API_KEY
 UPSTASH_QSTASH_TOKEN
 UPSTASH_QSTASH_CURRENT_SIGNING_KEY
