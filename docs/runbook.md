@@ -227,6 +227,7 @@ OPENAI_LLM_MODEL                  = gpt-4o
 
 # STT
 STT_PROVIDER                      = openai
+OPENAI_STT_MODEL                  = gpt-4o-mini-transcribe   # default; whisper-1 fallback için override edilebilir
 
 # TTS
 TTS_PROVIDER                      = elevenlabs
