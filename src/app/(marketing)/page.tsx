@@ -420,6 +420,14 @@ export default function LandingPage() {
                   <span>Türkçe Doğal Konuşma</span>
                 </div>
               </div>
+
+              <div className="hero-anchor-strip">
+                <span className="hero-anchor-pulse" aria-hidden />
+                <span className="hero-anchor-text">
+                  Erken erişim — pilot kurum kontenjanı sınırlı.
+                  İlk 5 kuruma %30 pilot indirimi.
+                </span>
+              </div>
             </div>
 
             <div className="hero-visual">
