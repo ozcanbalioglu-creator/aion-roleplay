@@ -139,6 +139,44 @@ ADR-017 yazılır: "ElevenLabs Conversational AI adapter eklendi". Sonra impleme
 
 ---
 
+## Faz B — Prompt Integration (2026-05-02)
+
+İlk Faz A testi sonrası persona davranışının tutarsız olduğunu (koç gibi davranma, oryantasyon programı tasarlama) gördük. Sorun mimari değil, prompt aktarımı eksikliğiydi: spike'ta minimal 70 satırlık manuel prompt vardı, mevcut prod ise `buildSystemPrompt()` ile tenant context + persona contract + ICF rubric + role-reminder + faz direktifleri zincirini kullanıyor.
+
+### P1 Keşif — Mimari Karar (kabul edildi)
+
+`src/lib/session/system-prompt.builder.ts`:
+- `buildSystemPrompt({ sessionId, personaId, scenarioId, tenantId })` — `sessionId` **parametre olarak alınıyor ama function gövdesinde HİÇ kullanılmıyor**
+- Sadece persona/scenario/tenant ID'leri DB sorgusu için gerekli
+- Persona prompt versiyonu encryption ile DB'de — `decrypt()` ile çözülüyor
+
+**Karar: Wrapper YAZMIYORUZ.** Mevcut fonksiyon zaten session-bağımsız; spike endpoint'inden direkt import + dummy `sessionId` geç. Bu, plan'daki P2 süresini 1.5 saatten 30 dakikaya indirir.
+
+**Eleminasyonun gerekçesi:**
+- Wrapper (a): Gereksiz duplikasyon, mevcut fonksiyon zaten saf
+- Refactor (b): Kapsam dışı, prod kodunu spike sırasında değiştirme riski
+- Geçici session (c): DB kirliliği, evaluation tetiklenmesi, yan etki
+
+**Tek pürüz — `scenarioId` zorunlu:**
+Function imzasında `scenarioId: string`. Spike URL'sinde scenario opsiyonel. Çözüm: spike sayfasında basit scenario picker eklenir, kullanıcı persona seçtikten sonra senaryo seçer; URL'ye query param olarak gider (`/realtime-spike/[personaId]?scenario=[scenarioId]`).
+
+### P2-P3 Implementation
+
+- `signed-url/route.ts`: minimal manuel prompt build kaldırıldı, `buildSystemPrompt({ sessionId: 'spike', personaId, scenarioId, tenantId })` çağrısı
+- Tenant ID auth user'ından çözülür (`users.tenant_id` lookup)
+- Spike sayfası scenario picker eklendi
+- Override.prompt'a tam ~5000+ char production prompt aktarılır
+
+### P4 A/B Test sonuçları
+
+(test sonrası doldurulacak)
+
+### P5 Final Karar
+
+(test sonrası doldurulacak)
+
+---
+
 ## İlgili Dosyalar
 
 - `Gelistirme23Nisan/Post_Launch_Iyilestirmeler.md` — R&D-001 (OpenAI Realtime) ile ilişki

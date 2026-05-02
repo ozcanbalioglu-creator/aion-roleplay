@@ -1,22 +1,30 @@
 /**
- * ElevenLabs Conversational AI — Signed URL endpoint (spike).
+ * ElevenLabs Conversational AI — Signed URL endpoint (spike Faz B).
  *
- * Persona ID alır, ElevenLabs API'sinden agent için signed URL üretir,
- * mevcut buildSystemPrompt() zincirini çalıştırıp runtime override
- * payload'unu hazırlar. Client tarafı bu payload'u useConversation'a
- * overrides olarak geçer.
+ * Production buildSystemPrompt() zincirini doğrudan çağırır — tenant
+ * context + persona contract + ICF rubric + role-reminder + faz
+ * direktifleri (~5000+ char). Çıktıyı override.prompt olarak Conv. AI
+ * agent'ına gönderir.
  *
- * Production'a alınmaz — branch: feat/voice-elevenlabs-spike.
+ * sessionId parametresi buildSystemPrompt fonksiyonunda tanımlı ama
+ * gövdesinde kullanılmıyor (yalnızca persona/scenario/tenant ID'leri
+ * ile DB sorguları yapılıyor) — bu yüzden spike'tan dummy bir değer
+ * geçmek güvenli. Production'a alınmaz, sadece feat/voice-elevenlabs-spike
+ * branch'inde yaşar.
  */
 
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { buildSystemPrompt } from '@/lib/session/system-prompt.builder'
 
 export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
   try {
-    const { personaId, scenarioId } = await request.json().catch(() => ({}))
+    const { personaId, scenarioId } = (await request
+      .json()
+      .catch(() => ({}))) as { personaId?: string; scenarioId?: string }
+
     if (!personaId) {
       return NextResponse.json({ error: 'personaId required' }, { status: 400 })
     }
@@ -30,7 +38,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // Auth + persona fetch
+    // Auth + tenant resolution
     const supabase = await createClient()
     const {
       data: { user }
@@ -39,82 +47,74 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
     }
 
+    const { data: appUser, error: appUserErr } = await supabase
+      .from('users')
+      .select('id, full_name, tenant_id')
+      .eq('id', user.id)
+      .single()
+    if (appUserErr || !appUser?.tenant_id) {
+      return NextResponse.json(
+        { error: 'tenant not found for user', detail: appUserErr?.message },
+        { status: 400 }
+      )
+    }
+
+    // Persona meta (voice_id + name for response payload)
     const { data: persona, error: personaErr } = await supabase
       .from('personas')
-      .select('id, name, title, voice_id, roleplay_contract, opening_directive, coaching_context')
+      .select('id, name, title, voice_id')
       .eq('id', personaId)
       .single()
     if (personaErr || !persona) {
       return NextResponse.json({ error: 'persona not found' }, { status: 404 })
     }
 
-    // Optional scenario context
-    let scenarioContext: string | null = null
-    if (scenarioId) {
-      const { data: scenario } = await supabase
+    // Resolve scenario: if not provided, fall back to first scenario tied
+    // to this persona for the tenant. Spike URL params keep things simple.
+    let resolvedScenarioId = scenarioId
+    if (!resolvedScenarioId) {
+      const { data: defaultScenario } = await supabase
         .from('scenarios')
-        .select('title, context_setup, role_context')
-        .eq('id', scenarioId)
+        .select('id')
+        .or(`tenant_id.eq.${appUser.tenant_id},tenant_id.is.null`)
+        .order('created_at', { ascending: true })
+        .limit(1)
         .single()
-      if (scenario) {
-        scenarioContext = [
-          scenario.title ? `# Senaryo: ${scenario.title}` : null,
-          scenario.context_setup ? `## Bağlam\n${scenario.context_setup}` : null,
-          scenario.role_context ? `## Rol Notu\n${scenario.role_context}` : null
-        ]
-          .filter(Boolean)
-          .join('\n\n')
-      }
+      if (defaultScenario) resolvedScenarioId = defaultScenario.id
+    }
+    if (!resolvedScenarioId) {
+      return NextResponse.json(
+        { error: 'no scenario available — pass ?scenario=<id> in URL' },
+        { status: 400 }
+      )
     }
 
-    // Get user display name for opening directive interpolation
-    const { data: appUser } = await supabase
-      .from('users')
-      .select('full_name')
-      .eq('id', user.id)
-      .single()
-    const userName = appUser?.full_name?.split(' ')[0] ?? ''
+    // Build the FULL production prompt — same chain prod uses:
+    //   tenant context_profile + persona contract + behavior params +
+    //   KPIs + scenario context + role context + rubric + phase directives
+    let prodPrompt: string
+    let scenarioTitle: string
+    try {
+      const built = await buildSystemPrompt({
+        sessionId: 'spike-not-used', // intentionally dummy — see file header
+        personaId,
+        scenarioId: resolvedScenarioId,
+        tenantId: appUser.tenant_id
+      })
+      prodPrompt = built.systemPrompt
+      scenarioTitle = built.scenarioTitle
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'buildSystemPrompt failed'
+      return NextResponse.json(
+        { error: 'prompt build failed', detail: msg },
+        { status: 500 }
+      )
+    }
 
-    // Build system prompt — spike version (kısa, runtime'da geliştirilecek).
-    // CRITICAL ROLE-LOCK preamble must come FIRST and be repeated, because
-    // GPT-4o under Conv. AI tends to drift into "coach" mode otherwise
-    // (mirrors the ROLE-INVERSION-001 fix in the production builder).
-    const contract =
-      persona.roleplay_contract ??
-      `Sen ${persona.name} adında bir çalışansın. Kullanıcı yöneticin/koçundur.`
-
-    const roleLock = `# 🔒 ROL KİLİDİ — EN ÖNEMLİ KURAL
-Sen **${persona.name}** adında bir çalışansın. Kullanıcı (Özcan) **senin yöneticindir/koçundur**, çalışan değil.
-
-YASAKLAR:
-- ❌ Kullanıcıya KARŞI SORU SORMAZSIN. "Siz nasılsınız?", "Sizce nasıl olmalı?" gibi sorular yasak.
-- ❌ Kullanıcıya TAVSİYE VERMEZSİN. Sen tavsiye alan taraftasın.
-- ❌ Kullanıcıyı DEĞERLENDİRMEZSİN ya da "iyi bir noktaya değindiniz" demezsin.
-- ❌ "Ben yapay zekayım" demezsin. Karakterde kalırsın.
-
-DAVRANIŞ:
-- ✅ Kullanıcının sorularına gerçek bir çalışan gibi tepki verirsin: doğal, bazen savunmacı, bazen kafan karışmış, bazen samimi.
-- ✅ Kısa cevaplar (1-3 cümle), spontan konuşma gibi.
-- ✅ Türkçe doğal ifadeler ("ya", "valla", "açıkçası", "hımm").
-- ✅ Yarım kalan cümleyi tamamlamazsın, kullanıcıyı yönlendirmezsin.`
-
-    const systemPrompt = [
-      roleLock,
-      `\n# Karakter: ${persona.name} (${persona.title ?? 'çalışan'})`,
-      contract,
-      persona.coaching_context ? `## Koçluk Bağlamı (sen değil, kullanıcı bunu uygular)\n${persona.coaching_context}` : null,
-      scenarioContext,
-      `\n# Hatırlatma\nSen yöneticini dinleyen çalışansın. SORU SORMA, TAVSİYE VERME. Doğal tepki ver.`
-    ]
-      .filter(Boolean)
-      .join('\n\n')
-
-    // First message: kısa, karaktere uygun bir selam — opening_directive
-    // BURADA KULLANILMAZ; o bir meta-talimat, persona repliği değil. Eğer
-    // DB'de "ilk söz" olarak hazırlanmış kısa bir kalıp yoksa boş bırak,
-    // agent kullanıcının başlatmasını bekler (AION akışına uygun).
-    const opening = userName ? `Merhaba ${userName} Bey, çağırdığınızı duydum, geldim.` : ''
-    void persona.opening_directive // not used as first message in v1.3 API
+    const userName = appUser.full_name?.split(' ')[0] ?? ''
+    const opening = userName
+      ? `Merhaba ${userName} Bey, çağırdığınızı duydum, geldim.`
+      : ''
 
     // Get signed URL from ElevenLabs
     const elResponse = await fetch(
@@ -124,38 +124,46 @@ DAVRANIŞ:
         headers: { 'xi-api-key': apiKey }
       }
     )
-
     if (!elResponse.ok) {
       const errText = await elResponse.text().catch(() => '')
       return NextResponse.json(
-        { error: 'elevenlabs signed-url failed', status: elResponse.status, detail: errText.slice(0, 500) },
+        {
+          error: 'elevenlabs signed-url failed',
+          status: elResponse.status,
+          detail: errText.slice(0, 500)
+        },
         { status: 502 }
       )
     }
 
-    const { signed_url: signedUrl } = (await elResponse.json()) as { signed_url: string }
+    const { signed_url: signedUrl } = (await elResponse.json()) as {
+      signed_url: string
+    }
 
     return NextResponse.json({
       signedUrl,
       overrides: {
         agent: {
-          prompt: { prompt: systemPrompt },
+          prompt: { prompt: prodPrompt },
           firstMessage: opening,
           language: 'tr'
         },
-        // tts.voice_id override mümkün değilse agent'ın default voice'u kullanılır
         ...(persona.voice_id ? { tts: { voiceId: persona.voice_id } } : {})
       },
       meta: {
         personaName: persona.name,
         personaTitle: persona.title,
         personaVoiceId: persona.voice_id,
+        scenarioId: resolvedScenarioId,
+        scenarioTitle,
         userName,
-        promptLength: systemPrompt.length
+        promptLength: prodPrompt.length,
+        promptSource: 'production-buildSystemPrompt'
       }
     })
   } catch (err) {
     console.error('[realtime-spike/signed-url] error', err)
-    return NextResponse.json({ error: 'internal' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : 'internal'
+    return NextResponse.json({ error: 'internal', detail: msg }, { status: 500 })
   }
 }
