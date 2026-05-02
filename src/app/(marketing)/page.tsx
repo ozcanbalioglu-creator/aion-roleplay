@@ -582,7 +582,6 @@ export default function LandingPage() {
                 bir potansiyel mi, kendine güvensiz bir yetenek mi? Kurum
                 ihtiyaçlarınıza göre seçtiğiniz personayla başlayın.
               </p>
-              <div className="step-connector" aria-hidden>→</div>
             </div>
             <div className="step-card">
               <span className="step-badge">02</span>
@@ -593,7 +592,6 @@ export default function LandingPage() {
                 gibi tepki verir; sözünü kesin, derinleştirin, sessizliği kullanın.
                 Sahadaki gibi.
               </p>
-              <div className="step-connector" aria-hidden>→</div>
             </div>
             <div className="step-card">
               <span className="step-badge">03</span>
