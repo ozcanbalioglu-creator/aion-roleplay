@@ -175,10 +175,40 @@ function RealtimeSpikeInner({ personaId, scenarioId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Filter out sub-100ms "turns" — those are spurious mode flips when the
+  // agent emits a brief filler ("...", "Devam edin") that flips
+  // listening→speaking without an actual LLM round trip. A real
+  // user→agent turn cannot be faster than ~150ms (network + STT + LLM
+  // first token), so anything below 100ms is noise.
+  const validTurns = useMemo(
+    () => latency.turns.filter((t) => t >= 100),
+    [latency.turns]
+  )
+
   const avgTurnLatency = useMemo(() => {
-    if (latency.turns.length === 0) return null
-    return Math.round(latency.turns.reduce((a, b) => a + b, 0) / latency.turns.length)
-  }, [latency.turns])
+    if (validTurns.length === 0) return null
+    return Math.round(validTurns.reduce((a, b) => a + b, 0) / validTurns.length)
+  }, [validTurns])
+
+  const medianTurnLatency = useMemo(() => {
+    if (validTurns.length === 0) return null
+    const sorted = [...validTurns].sort((a, b) => a - b)
+    const mid = Math.floor(sorted.length / 2)
+    return sorted.length % 2 === 0
+      ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)
+      : sorted[mid]
+  }, [validTurns])
+
+  const maxTurnLatency = useMemo(() => {
+    if (validTurns.length === 0) return null
+    return Math.max(...validTurns)
+  }, [validTurns])
+
+  const fmt = (ms: number | null): string => {
+    if (ms == null) return '—'
+    if (ms < 1000) return `${ms} ms`
+    return `${(ms / 1000).toFixed(2)} s`
+  }
 
   return (
     <div className="space-y-6">
@@ -212,9 +242,23 @@ function RealtimeSpikeInner({ personaId, scenarioId }: Props) {
 
       {/* Telemetry */}
       <div className="grid grid-cols-3 gap-4">
-        <Stat label="Connect → first audio" value={latency.firstAgentAudio ? `${latency.firstAgentAudio} ms` : '—'} />
-        <Stat label="Turn latency (avg)" value={avgTurnLatency ? `${avgTurnLatency} ms` : '—'} />
-        <Stat label="Turns" value={String(latency.turns.length)} />
+        <Stat label="Connect → first audio" value={fmt(latency.firstAgentAudio)} />
+        <Stat
+          label="Turn latency (median / avg)"
+          value={
+            medianTurnLatency != null
+              ? `${fmt(medianTurnLatency)} / ${fmt(avgTurnLatency)}`
+              : '—'
+          }
+        />
+        <Stat
+          label={`Valid turns / max`}
+          value={
+            validTurns.length > 0
+              ? `${validTurns.length} / ${fmt(maxTurnLatency)}`
+              : `${latency.turns.length} (filtered)`
+          }
+        />
       </div>
 
       {/* Meta debug */}
