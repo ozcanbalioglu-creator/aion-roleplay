@@ -75,25 +75,46 @@ export async function POST(request: Request) {
       .single()
     const userName = appUser?.full_name?.split(' ')[0] ?? ''
 
-    // Build system prompt — spike version (kısa, runtime'da geliştirilecek)
+    // Build system prompt — spike version (kısa, runtime'da geliştirilecek).
+    // CRITICAL ROLE-LOCK preamble must come FIRST and be repeated, because
+    // GPT-4o under Conv. AI tends to drift into "coach" mode otherwise
+    // (mirrors the ROLE-INVERSION-001 fix in the production builder).
     const contract =
       persona.roleplay_contract ??
-      `Sen ${persona.name} adında bir çalışansın. Kullanıcı yöneticin/koçundur. Sen soru sormazsın, tavsiye vermezsin. Karakterinde kal, doğal tepki ver.`
+      `Sen ${persona.name} adında bir çalışansın. Kullanıcı yöneticin/koçundur.`
+
+    const roleLock = `# 🔒 ROL KİLİDİ — EN ÖNEMLİ KURAL
+Sen **${persona.name}** adında bir çalışansın. Kullanıcı (Özcan) **senin yöneticindir/koçundur**, çalışan değil.
+
+YASAKLAR:
+- ❌ Kullanıcıya KARŞI SORU SORMAZSIN. "Siz nasılsınız?", "Sizce nasıl olmalı?" gibi sorular yasak.
+- ❌ Kullanıcıya TAVSİYE VERMEZSİN. Sen tavsiye alan taraftasın.
+- ❌ Kullanıcıyı DEĞERLENDİRMEZSİN ya da "iyi bir noktaya değindiniz" demezsin.
+- ❌ "Ben yapay zekayım" demezsin. Karakterde kalırsın.
+
+DAVRANIŞ:
+- ✅ Kullanıcının sorularına gerçek bir çalışan gibi tepki verirsin: doğal, bazen savunmacı, bazen kafan karışmış, bazen samimi.
+- ✅ Kısa cevaplar (1-3 cümle), spontan konuşma gibi.
+- ✅ Türkçe doğal ifadeler ("ya", "valla", "açıkçası", "hımm").
+- ✅ Yarım kalan cümleyi tamamlamazsın, kullanıcıyı yönlendirmezsin.`
 
     const systemPrompt = [
-      `# Karakter: ${persona.name} (${persona.title ?? 'çalışan'})`,
+      roleLock,
+      `\n# Karakter: ${persona.name} (${persona.title ?? 'çalışan'})`,
       contract,
-      persona.coaching_context ? `## Koçluk Bağlamı\n${persona.coaching_context}` : null,
+      persona.coaching_context ? `## Koçluk Bağlamı (sen değil, kullanıcı bunu uygular)\n${persona.coaching_context}` : null,
       scenarioContext,
-      `\n# Önemli\n- Türkçe konuş, doğal ifade kullan.\n- Kısa cevaplar ver (1-3 cümle), gerçek bir konuşma gibi.\n- Kullanıcının sorularına savunmacı/duygusal/şüpheci tepki ver — gerçek bir çalışan gibi.\n- Rolden çıkma. "Ben yapay zekayım" deme.`
+      `\n# Hatırlatma\nSen yöneticini dinleyen çalışansın. SORU SORMA, TAVSİYE VERME. Doğal tepki ver.`
     ]
       .filter(Boolean)
       .join('\n\n')
 
-    // First message: opening directive {USER_NAME} interpolation
-    const opening = persona.opening_directive
-      ? persona.opening_directive.replace(/\{USER_NAME\}/g, userName).replace(/\(\s*\)/g, '').trim()
-      : ''
+    // First message: kısa, karaktere uygun bir selam — opening_directive
+    // BURADA KULLANILMAZ; o bir meta-talimat, persona repliği değil. Eğer
+    // DB'de "ilk söz" olarak hazırlanmış kısa bir kalıp yoksa boş bırak,
+    // agent kullanıcının başlatmasını bekler (AION akışına uygun).
+    const opening = userName ? `Merhaba ${userName} Bey, çağırdığınızı duydum, geldim.` : ''
+    void persona.opening_directive // not used as first message in v1.3 API
 
     // Get signed URL from ElevenLabs
     const elResponse = await fetch(
