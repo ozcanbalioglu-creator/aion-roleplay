@@ -114,8 +114,13 @@ function RealtimeSpikeInner({ personaId, scenarioId }: Props) {
         body: JSON.stringify({ personaId, scenarioId })
       })
       if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}))
-        throw new Error(errBody.error || `signed-url failed (${res.status})`)
+        const errBody = await res.json().catch(() => ({} as Record<string, unknown>))
+        const parts = [
+          errBody.error ?? `signed-url failed (${res.status})`,
+          errBody.status ? `[el-status=${errBody.status}]` : null,
+          errBody.detail ? `\n${errBody.detail}` : null
+        ].filter(Boolean)
+        throw new Error(parts.join(' '))
       }
       const { signedUrl, overrides, meta: metaPayload } = await res.json()
       setMeta(metaPayload)
