@@ -76,25 +76,42 @@ function RealtimeSpikeInner({ personaId, scenarioId }: Props) {
       const role: 'user' | 'assistant' = source === 'user' ? 'user' : 'assistant'
       const now = Date.now()
       setTranscript((prev) => [...prev, { role, text: message, ts: now }])
-
+      // NOTE: agent message events fire AFTER the agent finishes speaking,
+      // which means using them for turn latency conflates "time-to-respond"
+      // with "speaking duration". Latency is now captured via mode change
+      // (see useEffect below) — listening → speaking is the true
+      // "agent started replying" moment.
       if (role === 'user') {
         lastUserUtteranceEndRef.current = now
-      } else if (role === 'assistant') {
-        // First agent audio after connect
-        if (!firstAgentAudioCapturedRef.current && connectStartRef.current) {
-          const elapsed = now - connectStartRef.current
-          firstAgentAudioCapturedRef.current = true
-          setLatency((prev) => ({ ...prev, firstAgentAudio: elapsed }))
-        }
-        // Turn latency: last user utterance → this agent message
-        if (lastUserUtteranceEndRef.current) {
-          const turn = now - lastUserUtteranceEndRef.current
-          setLatency((prev) => ({ ...prev, turns: [...prev.turns, turn] }))
-          lastUserUtteranceEndRef.current = null
-        }
       }
     }
   })
+
+  // Capture true latency: time between user transcript event and the moment
+  // the agent transitions from "listening" to "speaking" (i.e. first audio).
+  // The previous metric (assistant message event - user message event)
+  // included the entire agent utterance duration, which inflated reported
+  // latency by 4-8s on long Claude responses.
+  const prevModeRef = useRef<string | null>(null)
+  useEffect(() => {
+    const mode = conversation.mode
+    if (mode === 'speaking' && prevModeRef.current !== 'speaking') {
+      const now = Date.now()
+      // First-audio after connect
+      if (!firstAgentAudioCapturedRef.current && connectStartRef.current) {
+        const elapsed = now - connectStartRef.current
+        firstAgentAudioCapturedRef.current = true
+        setLatency((prev) => ({ ...prev, firstAgentAudio: elapsed }))
+      }
+      // Per-turn latency: only meaningful after the first user utterance
+      if (lastUserUtteranceEndRef.current) {
+        const turn = now - lastUserUtteranceEndRef.current
+        setLatency((prev) => ({ ...prev, turns: [...prev.turns, turn] }))
+        lastUserUtteranceEndRef.current = null
+      }
+    }
+    prevModeRef.current = mode
+  }, [conversation.mode])
 
   const start = useCallback(async () => {
     setError(null)
