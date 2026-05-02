@@ -2224,6 +2224,21 @@
       .hero-anchor-pulse { animation: none; }
     }
 
+    /* ── MID-PAGE INLINE CTA (TASK-4) ── */
+    .section-cta {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 3rem;
+      flex-wrap: wrap;
+    }
+    .section-cta-hint {
+      font-size: 0.875rem;
+      color: var(--text-muted, rgba(255, 255, 255, 0.6));
+    }
+    .dark-section .section-cta-hint { color: rgba(255, 255, 255, 0.6); }
+
     /* ── RESPONSIVE ── */
     @media (max-width: 1024px) {
       .landing-root {

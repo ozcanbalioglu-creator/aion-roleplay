@@ -652,6 +652,11 @@ export default function LandingPage() {
           <div className="personas-cta">
             <a href="#demo">→ Tüm persona kütüphanesini görün (12+ karakter)</a>
           </div>
+
+          <div className="section-cta">
+            <a href="#demo" className="btn btn-primary">Demo Talep Et</a>
+            <span className="section-cta-hint">30 dakika · sıfır taahhüt</span>
+          </div>
         </div>
       </section>
 
@@ -795,6 +800,11 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+
+          <div className="section-cta">
+            <a href="#demo" className="btn btn-primary">Demo Talep Et</a>
+            <span className="section-cta-hint">30 dakika · sıfır taahhüt</span>
+          </div>
         </div>
       </section>
 
@@ -911,6 +921,11 @@ export default function LandingPage() {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="section-cta">
+            <a href="#demo" className="btn btn-primary">Demo Talep Et</a>
+            <span className="section-cta-hint">30 dakika · sıfır taahhüt</span>
           </div>
         </div>
       </section>
