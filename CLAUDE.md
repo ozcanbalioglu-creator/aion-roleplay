@@ -64,6 +64,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Deploy sırası kritik:** Migration 052 ÖNCE staging DB SQL Editor'da çalıştırılmalı. Aksi halde PostgREST 42703 (column not found) hatası → seans başlatılamaz, dashboard query'leri kırılır.
 
+> **✅ Migration 052 staging DB'de uygulandı (2026-05-02 doğrulandı):** 5 persona (Ahmet Yılmaz, Emre Demir, Murat Kaya, Neslihan Bozkurt, Selin Çelik) için `roleplay_contract` (1617 char) ve `opening_directive` (295 char) seed UPDATE çalıştı. Test seansında AI çalışan rolünde davrandı; PersonaForm "Roleplay Sözleşmesi" kartı end-to-end (görüntüle/düzenle/kaydet/yeniden aç) doğrulandı.
+
 **Mimari kazanım:** Aynı kod tabanı üzerinde **kod değişikliği olmadan** yeni roleplay türleri (mentee koçluk alıyor, mülakat pratiği, satış pitch, zor müşteri yönetimi vb.) süper admin tarafından persona kaydı düzenleyerek eklenebilir. Phase 2 mode preset sistemi bu temelin üstüne kurulacak.
 
 **İlgili dosyalar:** `supabase/migrations/20260501_052_*.sql`, `src/lib/session/system-prompt.builder.ts`, `src/lib/session/system-prompt.builder.test.ts`, `src/lib/actions/persona.actions.ts`, `src/components/admin/PersonaForm.tsx`, `src/components/sessions/VoiceSessionClient.tsx`, `src/lib/queries/session.queries.ts`, `src/app/(dashboard)/dashboard/sessions/[id]/page.tsx`
