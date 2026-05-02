@@ -111,6 +111,19 @@ export async function POST(request: Request) {
       )
     }
 
+    // Strip the phase-directives block before handing to Conv. AI.
+    // Production's chat route strips [PHASE:*] / [SESSION_END] markers
+    // from the LLM stream before TTS so they never speak. Conv. AI sends
+    // agent output directly to TTS, so the markers leak as audible
+    // "phase opening" tokens. Removing the directive section makes the
+    // agent stop emitting markers entirely. Phase tracking for the Conv.
+    // AI path will be reintroduced via tool calls in Faz C — out of
+    // scope for this spike.
+    const PHASE_DIRECTIVES_HEADER = '\n\n## Faz Takibi'
+    const phaseStartIdx = prodPrompt.indexOf(PHASE_DIRECTIVES_HEADER)
+    const convAiPrompt =
+      phaseStartIdx >= 0 ? prodPrompt.slice(0, phaseStartIdx) : prodPrompt
+
     const userName = appUser.full_name?.split(' ')[0] ?? ''
     const opening = userName
       ? `Merhaba ${userName} Bey, çağırdığınızı duydum, geldim.`
@@ -144,7 +157,7 @@ export async function POST(request: Request) {
       signedUrl,
       overrides: {
         agent: {
-          prompt: { prompt: prodPrompt },
+          prompt: { prompt: convAiPrompt },
           firstMessage: opening,
           language: 'tr'
         },
@@ -157,8 +170,9 @@ export async function POST(request: Request) {
         scenarioId: resolvedScenarioId,
         scenarioTitle,
         userName,
-        promptLength: prodPrompt.length,
-        promptSource: 'production-buildSystemPrompt'
+        promptLength: convAiPrompt.length,
+        promptLengthBeforePhaseStrip: prodPrompt.length,
+        promptSource: 'production-buildSystemPrompt-phaseStripped'
       }
     })
   } catch (err) {
