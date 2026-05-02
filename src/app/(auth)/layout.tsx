@@ -56,13 +56,13 @@ export default function AuthLayout({
       </section>
 
       {/* Right Side: Action Canvas */}
-      <section className="flex flex-col justify-center items-center w-full lg:w-1/3 p-8 md:p-24 bg-surface relative">
+      <section className="flex flex-col justify-center items-center w-full lg:w-1/3 px-8 pt-32 pb-16 md:pt-40 md:pb-20 lg:p-24 bg-surface relative">
         {/* Mobile Logo */}
-        <div className="lg:hidden absolute top-12 left-1/2 -translate-x-1/2">
-          <img src="/aion_more_genis.png" alt="AION Mirror" className="h-16 w-auto" />
+        <div className="lg:hidden absolute top-8 left-1/2 -translate-x-1/2">
+          <img src="/aion_more_genis.png" alt="AION Mirror" className="h-14 w-auto" />
         </div>
 
-        <div className="w-full max-w-sm space-y-10 z-10">
+        <div className="w-full max-w-sm space-y-6 z-10">
           {children}
         </div>
 
