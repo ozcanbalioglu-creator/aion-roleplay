@@ -389,8 +389,9 @@ export default function LandingPage() {
               </div>
 
               <h1 className="hero-headline">
-                Liderlik, <em>sahada</em><br />öğrenilir.<br />
-                Sahneyi biz<br />kuruyoruz.
+                Yöneticileriniz <em>zor konuşmaları</em><br />
+                önce burada prova etsin.<br />
+                Sahaya hazır çıksın.
               </h1>
 
               <p className="hero-sub">
