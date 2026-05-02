@@ -403,7 +403,7 @@ export default function LandingPage() {
 
               <div className="hero-cta">
                 <a href="#demo" className="btn btn-primary btn-lg">Demo Talep Et</a>
-                <a href="#contact" className="btn btn-ghost btn-lg">Kurumunuza Özel Senaryo</a>
+                <a href="#report" className="btn btn-ghost btn-lg">Örnek Raporu Gör</a>
               </div>
 
               <div className="hero-trust">
