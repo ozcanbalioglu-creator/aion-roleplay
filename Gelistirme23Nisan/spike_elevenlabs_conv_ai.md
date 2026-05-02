@@ -167,13 +167,51 @@ Function imzasında `scenarioId: string`. Spike URL'sinde scenario opsiyonel. Ç
 - Spike sayfası scenario picker eklendi
 - Override.prompt'a tam ~5000+ char production prompt aktarılır
 
-### P4 A/B Test sonuçları
+### P4 A/B Test Sonuçları
 
-(test sonrası doldurulacak)
+4 LLM karşılaştırması (Murat Kaya / Düşen Performans senaryosu, ~5-10 dk seanslar):
+
+| Kriter | GPT-4o | Claude 4.5 | **GPT-5.4** ⭐ | Mevcut Prod |
+|---|---|---|---|---|
+| Karşı soru | ❌ Her cevapta | ⚠️ Açılışta | ✅ Yok | ✅ Yok |
+| Pharma rep tonu | ❌ L&D direktörü | ✅ Mükemmel | ✅ Mükemmel | ✅ |
+| Direnç gösterimi | ❌ Sıfır | ✅ Güçlü+derinlik | ✅ "evet ama" pattern | ✅ |
+| Cevap kısalığı | ⚠️ 3-5 cümle | ⚠️ 3-5 cümle | ✅ 2-3 cümle | ✅ 1-3 cümle |
+| First audio | ~1000ms | ~1000ms | **951ms** | ~3-5s |
+| Algılanan turn latency | ~500ms | ~3-5s (uzun cevaplar) | **~1s** | ~3-5s |
+| Maliyet/5dk | ~$0.27 | ~$0.55 | **~$0.22** | ~$0.40 |
+| PHASE marker leak | N/A (önce vardı, fix sonrası yok) | N/A | N/A | N/A (chat route strip ediyor) |
+
+Önemli notlar:
+- **Phase directives strip fix:** signed-url endpoint'i "## Faz Takibi" bölümünü Conv. AI'a göndermeden önce siliyor. Production prompt zinciri olduğu gibi build ediliyor (regression yok), sadece Conv. AI yolunda phase tracking devre dışı (Faz C'de tool call ile geri eklenecek).
+- **Latency metric belirsizliği:** Spike client'ta turn latency mode change üzerinden ölçülüyor; ancak Conv. AI server-VAD endpoint detection'ı agent ses üretmeden önce mode='speaking'e flip ediyor — sonuç: turn ölçümleri agent yanıt verme süresinden çok daha kısa (sub-100ms range), filter sonrası "5 (filtered)" görünüyor. **Sübjektif kullanıcı deneyimi (~1s) en güvenilir sinyal.** Faz C'de WebSocket frame'lerinden audio chunk başlangıcı yakalanarak doğrulanır.
 
 ### P5 Final Karar
 
-(test sonrası doldurulacak)
+**GEÇ.** Spike olumlu sonuçlandı. Conv. AI ile mevcut prod arasında ölçülebilir avantajlar:
+
+| Boyut | Mevcut Prod | Conv. AI + GPT-5.4 | Kazanç |
+|---|---|---|---|
+| Latency (first audio + turn) | ~3-5s | ~1s | **3-5x hızlı** |
+| Persona kalitesi | ✅ Tam | ✅ Tam (production prompt aktarıldı) | Eşit |
+| Maliyet/seans | ~$0.40 | ~$0.22 | **~45% ucuz** |
+| Voice ID flexibility | ✅ Persona başına | ✅ Aynı (override aktarıldı) | Eşit |
+| Türkiye region | ❌ | ❌ | Eşit (KVKK kritik müşteri için ileride değerlendir) |
+
+**3 büyük doğrulama sağlandı:**
+1. Production `buildSystemPrompt()` zinciri (~6620 char) Conv. AI override'ına başarıyla aktarıldı — persona davranışı prod ile **eşit veya daha iyi**.
+2. Persona-spesifik ElevenLabs voice ID Conv. AI üzerinden aynı doğallıkta çalışıyor — ses kalitesi yatırımı korundu.
+3. Maliyet ve latency vaadi tutuldu (GPT-5.4 LLM seçimi + phase strip fix sonrası).
+
+**Bilinen kalan iş (Faz C kapsamında çözülecek):**
+- Phase tracking Conv. AI yolunda devre dışı — Conv. AI tool call ile yeniden bağlanacak
+- 5 persona için Conv. AI agent oluşturulması (manuel, persona başına ~15 dk)
+- Latency metric daha güvenilir hale getirilecek (WebSocket frame analizi)
+- Engine preference DB schema (per-persona veya per-tenant)
+- Feature flag + paralel client component (`RealtimeVoiceSessionClient`)
+- Pilot tenant rollout
+
+Sonraki: ADR-017 + Faz C iş paketleri yol haritasına işlenir.
 
 ---
 

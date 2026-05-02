@@ -1022,6 +1022,72 @@ Roleplay sözleşmesi **persona kaydının parçası** olur. Uygulama kodu içer
 
 ---
 
+### ADR-017 — ElevenLabs Conversational AI Realtime Adapter
+
+**Tarih:** 2026-05-02
+**Status:** Accepted (spike olumlu sonuçlandı, branch `feat/voice-elevenlabs-spike`)
+**Decision drivers:** Mevcut Whisper+ElevenLabs+OpenAI sıralı pipeline'ında turn latency 3-5 saniye. Pilot launch'tan sonra "AI çok yavaş" geri bildirimi gelirse hızlı bir geçiş yolu hazır olsun.
+
+#### Bağlam
+
+Mevcut sesli seans akışı 3 ayrı vendor ve 3 ayrı round-trip kullanıyor: STT (Whisper) → LLM (GPT-4o) → TTS (ElevenLabs Turbo v2.5). Her round-trip ortalama 1-1.5 saniye, toplam algılanan latency 3-5 saniye. Bu, gerçek koçluk konuşma akıcılığının altında.
+
+ElevenLabs Conv. AI üç katmanı tek WebSocket içinde birleştiriyor (server-side VAD + LLM hop + persona ses üretimi). 2026-05-02'de spike branch'inde 4 farklı LLM ile end-to-end test yapıldı. Sonuçlar `spike_elevenlabs_conv_ai.md`'da:
+
+- **GPT-4o:** Latency düşük ama persona ROLE-INVERSION yapıyor (mevcut prod'daki çözümlü bug yeniden ortaya çıkıyor)
+- **Claude 4.5:** Persona kalitesi mevcut prod'tan daha iyi ama uzun cevaplar nedeniyle algılanan latency yüksek
+- **GPT-5.4:** Persona kalitesi mükemmel + cevap kısalığı en iyi + ~1s algılanan latency + maliyet en düşük (kazanan)
+
+#### Karar
+
+ElevenLabs Conv. AI adapter'ı **mevcut pipeline'ın yanında, ek bir engine seçeneği olarak** kabul edilir. Mevcut adapter mimarisine uygun: `src/adapters/realtime/` klasörü altında provider-agnostic interface, ilk implementation `elevenlabs-conv.adapter.ts`.
+
+**Koexistence prensipleri:**
+1. **Mevcut akış default kalır.** Hiçbir tenant/persona zorla taşınmaz.
+2. **`personas.engine_preference` kolonu** (yeni, migration 053): `'classic' | 'realtime'`, default `'classic'`. Süper admin per-persona seçer.
+3. **`tenants.default_engine` kolonu** (yeni): tenant düzeyinde default. Persona override eder.
+4. **Feature flag `realtimeVoice`:** Initial rollout'ta sadece pilot tenant'lar için açık.
+5. **Production prompt zinciri (`buildSystemPrompt`) Conv. AI override'ına aktarılır.** Spike'ta doğrulandı: aynı 6620 char prompt persona davranışını koruyor.
+6. **PHASE direktiflerini Conv. AI'a göndermeden önce strip et.** Conv. AI agent çıktısını doğrudan TTS'ye gönderiyor; bracket marker'lar sesli okunuyor. Phase tracking Conv. AI yolunda Conv. AI tool call ile yeniden bağlanır (P-C-005).
+7. **LLM seçimi GPT-5.4** (ElevenLabs built-in, Custom LLM gerekmez). Persona kalitesi + cevap kısalığı + maliyet eşitlemesinde galibiyet.
+8. **Persona-spesifik voice ID korunur.** ElevenLabs Conv. AI agent override'ı persona voice ID'sini runtime'da set ediyor — mevcut yatırım bozulmaz.
+
+#### Karşılaştırma — kazanım tablosu
+
+| Boyut | Mevcut Prod | Conv. AI + GPT-5.4 |
+|---|---|---|
+| First-audio latency | ~3-5s | ~1s |
+| Maliyet/seans | ~$0.40 | ~$0.22 (~45% ucuz) |
+| Persona kalitesi | ✅ Tam | ✅ Tam (production prompt) |
+| Persona-spesifik ses | ✅ | ✅ (override aktarıldı) |
+| Phase tracking UI | ✅ Chat route strip + UI |  ⚠️ Faz C'de tool call ile bağlanacak |
+| Türkiye region (KVKK) | ❌ | ❌ (kritik müşteride değerlendir) |
+
+#### Reddedilen alternatifler
+
+- **OpenAI Realtime API geçişi (R&D-001):** Persona-spesifik ses kavramı kaybolur (sadece 6-10 OpenAI ses preset). AION Mirror'ın değer önerisini bozar.
+- **Azure OpenAI Realtime:** Setup karmaşık (Azure subscription, RBAC, VNet) + Türkçe Neural Voice 2-3 ses sınırlı.
+- **İkinci ayrı proje:** Auth, dashboard, evaluation, raporlama %80 kod duplikasyonu olur. Adapter olarak ekleme tek codebase'de tek schema sağlar.
+- **Custom LLM (Conv. AI içinden direkt OpenAI çağrısı):** Spike sonucu GPT-5.4 built-in seçimiyle persona kalitesi zaten yeterli; custom LLM ek karmaşıklık karşılığı marjinal kazanç. Faz C'de gerekirse opsiyonel olarak değerlendirilir.
+
+#### Sonuçlar
+
+- Yeni adapter mimarisi gerekli: `src/adapters/realtime/{interface,elevenlabs-conv.adapter}.ts`
+- Yeni client component: `RealtimeVoiceSessionClient.tsx` (klasik `VoiceSessionClient` paralelde çalışır)
+- Schema değişikliği: migration 053 (`engine_preference`, `default_engine`, `agent_id` kolonları)
+- 5 persona için ElevenLabs Conv. AI agent oluşturulması (manuel, persona başına ~15 dk)
+- Feature flag `realtimeVoice` infra'ya eklenir (mevcut `features.ts` pattern)
+- Phase tracking Conv. AI'da tool call ile re-implement edilir
+- Latency telemetrisi WebSocket frame analizi ile daha güvenilir hale getirilir
+- Pilot tenant rollout ile real-world validation
+
+#### Belgeler
+
+- `Gelistirme23Nisan/spike_elevenlabs_conv_ai.md` — spike planı + 4 model A/B test sonuçları + final karar
+- Branch: `feat/voice-elevenlabs-spike` (referans için saklanır, Faz C implementation `feat/voice-realtime-faz-c` üzerinde başlar)
+
+---
+
 ### Durum Özeti (2026-04-26 sonrası)
 
 | ADR | Durum | Faz |
@@ -1042,3 +1108,4 @@ Roleplay sözleşmesi **persona kaydının parçası** olur. Uygulama kodu içer
 | **ADR-014 — Per-persona voice ID** | **Accepted (2026-04-24)** | **Phase 2** |
 | **ADR-015 — Development plan aggregation** | **Accepted (2026-04-24)** | **Phase 2** |
 | **ADR-016 — Parametrik roleplay sözleşmesi** | **Accepted (2026-04-26)** | **Pre-Launch Phase 1 + Post-Launch Phase 2** |
+| **ADR-017 — ElevenLabs Conv. AI realtime adapter** | **Accepted (2026-05-02, spike sonucu olumlu)** | **Post-Launch Faz C** |
