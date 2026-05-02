@@ -13,6 +13,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  // ElevenLabs Conv. AI SDK has browser-only deps; transpile so SSR
+  // bundling treats them like first-party code (spike branch).
+  transpilePackages: ['@elevenlabs/react', '@elevenlabs/client'],
   // SharedArrayBuffer — ONNX Runtime (VAD) için gerekli
   async headers() {
     return [

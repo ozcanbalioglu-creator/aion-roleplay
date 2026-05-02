@@ -10,7 +10,7 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { RealtimeSpikeClient } from './RealtimeSpikeClient'
+import { RealtimeSpikeMount } from './RealtimeSpikeMount'
 
 interface Props {
   params: Promise<{ personaId: string }>
@@ -57,7 +57,7 @@ export default async function RealtimeSpikePage({ params, searchParams }: Props)
           </p>
         </header>
 
-        <RealtimeSpikeClient personaId={personaId} scenarioId={scenarioId ?? null} />
+        <RealtimeSpikeMount personaId={personaId} scenarioId={scenarioId ?? null} />
       </div>
     </div>
   )
