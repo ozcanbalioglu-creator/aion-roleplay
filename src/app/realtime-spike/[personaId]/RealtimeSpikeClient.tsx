@@ -16,7 +16,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useConversation } from '@elevenlabs/react'
+import { ConversationProvider, useConversation } from '@elevenlabs/react'
 
 interface Props {
   personaId: string
@@ -35,7 +35,19 @@ interface LatencySample {
   turns: number[]
 }
 
-export function RealtimeSpikeClient({ personaId, scenarioId }: Props) {
+/**
+ * @elevenlabs/react@1.3 requires `useConversation()` to live inside a
+ * `<ConversationProvider>`. We wrap the inner component here.
+ */
+export function RealtimeSpikeClient(props: Props) {
+  return (
+    <ConversationProvider>
+      <RealtimeSpikeInner {...props} />
+    </ConversationProvider>
+  )
+}
+
+function RealtimeSpikeInner({ personaId, scenarioId }: Props) {
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error' | 'ended'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [transcript, setTranscript] = useState<TranscriptLine[]>([])
